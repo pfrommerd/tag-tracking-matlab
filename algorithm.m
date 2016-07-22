@@ -1,56 +1,53 @@
-function [  ] = algorithm( frames, num_frames, camParams )
-    intrinsics = camParams.IntrinsicMatrix;
-    params = [intrinsics(1, 1) intrinsics(2, 2) intrinsics(1, 3) intrinsics(2, 3)];
+function [  ] = algorithm(camParams, images)
+    K = transpose(camParams.IntrinsicMatrix);
     
-    pointTracker = vision.PointTracker;
+    if ~exist('images', 'var')
+        images = VideoSource('video.mp4', camParams);
+    end
+    filter = Filter();
     
-    initialized = false;
+    tagSize = 0.1635;
+    detector = TagDetector(tagSize, camParams);
+    tracker = TagTracker();
     
-    for i = 1:num_frames
-        frame = frames{i};
+    while images.hasImage()
+        img = images.readImage();
+        
+        clf();
 
-        trackedPoints = [];
-        if initialized
-            trackedPoints = step(pointTracker, frame);
+        imshow(img);
+        hold on;
+        
+        tag = [];
+
+        tracker_tags = tracker.process(img);
+        if size(tracker_tags, 2) > 0
+            tag = tracker_tags{1};
         end
         
-
+        detector_tags = detector.process(img);
+        if size(detector_tags, 2) > 0
+            tag = detector_tags{1};
+            tracker.track(K, tagSize, tag);
+        end
         
-        results = find_apriltags(frame, 0.5, params);
-        resultsSize = size(results);
+        %tag
         
-        imshow(frame);
-        hold on;
+        if length(tag) > 0
+            [x, P] = filter.step(tag, 1);
 
-        if resultsSize(2) > 0
-            % Process the tags and reset the tracker
-            for i = 1:resultsSize(2)
-                tag = results(1, i);
-
-                x = tag.corners(1, :);
-                y = tag.corners(2, :);
-                points = transpose([x;y]);
-
-                if ~initialized
-                    initialize(pointTracker, points, frame);
-                    initialized = true;
-                else
-                    % Otherwise reset the points
-                    setPoints(pointTracker, points);
-                end
-                
-                plot([x, x(1)], [y y(1)], '.-', 'Color', 'r')
-            end
-        else
-            % Show the tracker points
-            if initialized
-                x = transpose(trackedPoints(:, 1));
-                y = transpose(trackedPoints(:, 2));
-                plot([x, x(1)], [y y(1)], '.-', 'Color', 'y')                
-            end
+            % Draw tag
+            drawTag(K, tagSize, x, 'r');
         end
         drawnow
-
     end
 end
 
+function drawTag(K, tagSize, tag, color)
+    points = projectTag(K, tagSize, tag);
+    
+    x = points(1, :);
+    y = points(2, :);
+    
+    plot([x x(1)], [y y(1)], '.-', 'Color', color);
+end
