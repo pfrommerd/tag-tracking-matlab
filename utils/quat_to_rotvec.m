@@ -14,7 +14,8 @@ function OMEGA = quat_to_rotvec(Q)
     idx           = find(ang > 10 * eps);
     
     if length(idx) > 0
-        OMEGA(idx, :) = ahalf * 2 * Q(idx, 2:4) / ang(idx);
+        foo = bsxfun(@times, (ahalf(idx) * 2), Q(idx, 2:4));
+        OMEGA(idx, :) = bsxfun(@rdivide, foo, ang(idx));
     end
 end
 

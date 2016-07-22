@@ -3,10 +3,11 @@ function [ R, T ] = homography_extract_pose( K, H )
 % homography
 H = inv(K) * H;
 
-h1 = H(:, 1);
-h2 = H(:, 2);
+r1 = H(:, 1);
+r2 = H(:, 2);
+r3 = cross(r1, r2);
 
-R_h = [ h1 h2 cross(h1, h2) ];
+R_h = [ r1 r2 r3 ];
 
 % Clean up R_h
 [U, D, V] = svd(R_h);

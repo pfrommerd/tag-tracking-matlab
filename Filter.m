@@ -16,14 +16,18 @@ classdef Filter < handle
         function obj = Filter()
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            pnoise = 1e-3;
+            pnoise = 1e-4;
             %pnoise = 0;
             obj.process_noise = diag(pnoise * ones(1, 12));
 
             % Measurement noise is in the same
-            % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            mnoise = 1e-4;
-            obj.measure_noise = diag(mnoise * ones(1, 12));
+            % 12-dimensional matrix space [pos, rot, vel, rot_vel]
+            mnoise = 1e-6;
+            vel_noise = 1e-0;
+            rot_vel_noise = 1e-0;
+            
+            obj.measure_noise = diag([mnoise * [1 1 1 1 1 1] vel_noise *[1 1 1] ...
+                                      rot_vel_noise * ones(1, 3)]);
             obj.state = zeros(13, 1);
             % Set initial rotation to 0
             obj.state(4:7) = [1; 0; 0; 0]; 
@@ -33,7 +37,7 @@ classdef Filter < handle
             obj.state_covar = eye(12);        
         end
         
-        function [x_out, P_out] = step(this, z, dt)
+        function [x_out, P_out, nu_out] = step(this, z, dt)
             % Setup variables
             x = this.state; % Our last state
             P = this.state_covar; % Our last covariance 
@@ -48,6 +52,7 @@ classdef Filter < handle
             % Process time step update
             S   = chol((P + Q));   % add process noise first (eq 35)
             W   = sqrt(n)*[S, -S]; % this is where the paper has sqrt(2n)
+
             % Our sigmas
             chi = add_x(W, x);
             
@@ -77,7 +82,11 @@ classdef Filter < handle
             K          = P_xz * P_vv^-1; % eqn (72)
 
             x_out = add_x(K * nu, y_minus);
+            
             P_out = P_yy - K * P_vv * K';
+
+            % Debugging stuff
+            nu_out = nu;
             
             % Set our variables again
             this.state = x_out;

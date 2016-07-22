@@ -3,7 +3,7 @@ classdef TagTracker < TagSource
         tracker
         initialImage
         initialized
-
+        
         K
         tagSize
     end
@@ -33,7 +33,7 @@ classdef TagTracker < TagSource
             this.tracker.setPoints(points);
         end
         
-        function tags = process(this, img)
+        function tags = process(this, img, lastTag)
             tags = {};
             if ~this.initialized
                 this.initialImage = img;
@@ -41,20 +41,24 @@ classdef TagTracker < TagSource
             end
             
 
-            points = this.tracker.step(img)';
+            points = this.tracker.step(img);
             
             tagSize = this.tagSize/2;
             pin = [-tagSize, tagSize; ...
                      tagSize tagSize; ...
                      tagSize -tagSize;...
-                     -tagSize -tagSize]';
+                     -tagSize -tagSize];
             H = homography_solve(pin, points);
             
             [R, T] = homography_extract_pose(this.K, H);
             
-            tag = [T; rotm_to_quat(R)'; [0; 0; 0]; [0; 0; 0]];
-            
-            tags{1} = tag;
+            % Comute a quaternion from a rot mat
+            rot = rotm_to_quat(R)';
+
+            delta_q = qmult(qinv(lastTag(4:7)'), rot')';
+
+
+            tags{1} = [ T; rot; T- lastTag(1:3); quat_to_rotvec(delta_q')'];
         end
     end
 end
