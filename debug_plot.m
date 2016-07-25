@@ -1,6 +1,31 @@
-function debug_plot(T, X, NU, fig1, fig2, fig3, fig4, fig5)
+function debug_plot(X, T, FT, NU, fig1, fig2, fig3, fig4, fig5)
+    st = max(size(X,2) - 40, 1);
+    ed = max(size(X,2), 1);
+    
+    if size(X, 2) < 1
+        return;
+    end
+
+    change_figure(fig1);
+    clf();
+
+    scatter3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'MarkerEdgeColor', 'red')
+    hold on;
+    plot3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'Color', 'red')
+    
+    title('Position');
+    
+    change_figure(fig2);
+    clf();
+
+    scatter3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'MarkerEdgeColor', 'red')
+    hold on;
+    plot3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'Color', 'red')
+    
+    title('Velocity');
+    
     % Plot the position
-    %%{
+    %{
     change_figure(fig1);
     clf();
     scatter3(X(1,:), X(2,:), X(3,:), 'MarkerEdgeColor', 'red')
@@ -9,7 +34,6 @@ function debug_plot(T, X, NU, fig1, fig2, fig3, fig4, fig5)
 
     scatter3(T(1,:), T(2,:), T(3,:), 'MarkerEdgeColor', 'blue')
     plot3(T(1,:), T(2,:), T(3,:), 'Color', 'blue')
-    %}
     title('Position');
     
     change_figure(fig2)
@@ -58,6 +82,7 @@ function debug_plot(T, X, NU, fig1, fig2, fig3, fig4, fig5)
     plot3(NU(1,:), NU(2,:), NU(3,:), 'Color', 'red')
 
     title('Position nu');
+    %}
 end
 
 function change_figure(h)

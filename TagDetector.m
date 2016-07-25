@@ -18,40 +18,15 @@ classdef TagDetector < TagSource
             detector.params = params;
         end
         
-        function tags = process(this, img, lastTag)
+        function tags = process(this, img)
             results = find_apriltags(img, this.tagSize, this.params);
             resultsSize = size(results);
 
             tags = {};
             for i = 1:resultsSize(2)
                 r = results(i);
-                
-                tagSize = this.tagSize / 2;
-                
-                % TL
-                % TR
-                % BL
-                % BR
-                pin = [-tagSize, tagSize; ...
-                     tagSize tagSize; ...
-                     tagSize -tagSize;...
-                     -tagSize -tagSize]';
-                
-                %H = homography_solve(pin, r.corners');
-                %[R, T] = homography_extract_pose(this.K, H);
-                R = r.rotation';
-                T = -r.translation;
-                
-                % Comute a quaternion from a rot mat
-                rot = rotm_to_quat(R)';
-                delta_q = qmult(qinv(lastTag(4:7)'), rot')';
-                
-                tags{i} = [ T; rot; T - lastTag(1:3); quat_to_rotvec(delta_q')'];
-     %{
-                tags{i}.translation = r.translation;
-                tags{i}.rotation = transpose(r.rotation);
-                tags{i}.rotation_quat = rotm_to_quat(transpose(r.rotation));
-     %}
+                tag = reshape(r.corners, [8, 1]);
+                tags{i} = tag;
             end
             
         end

@@ -8,7 +8,7 @@ classdef CameraSource < ImageSource
     end
     
     methods
-        function source = VideoSource(camera, camParams)
+        function source = CameraSource(camera, camParams)
             source.camera = camera;
             source.camParams = camParams;
         end
@@ -18,7 +18,7 @@ classdef CameraSource < ImageSource
         end
         
         function img = readImage(this)
-            imgRGB = snapshot(this.decoder);
+            imgRGB = snapshot(this.camera);
             imgGray = rgb2gray(imgRGB);
             % Undistort the image
             img = undistortImage(imgGray, this.camParams);

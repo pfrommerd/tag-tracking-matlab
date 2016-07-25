@@ -5,6 +5,9 @@ classdef Filter < handle
     % [pos(3), rot(4), vel(3), rot_vel(3)]
     
     properties
+        A % The time update function
+        H % The measurement projection function
+        
         process_noise
         measure_noise
         
@@ -13,36 +16,39 @@ classdef Filter < handle
     end
     
     methods
-        function obj = Filter()
+        function obj = Filter(A, H, x_initial)
+            obj.A = A;
+            obj.H = H;
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            pnoise = 1e-4;
+            pnoise = 1e-1;
             %pnoise = 0;
             obj.process_noise = diag(pnoise * ones(1, 12));
 
             % Measurement noise is in the same
             % 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            mnoise = 1e-6;
-            vel_noise = 1e-0;
-            rot_vel_noise = 1e-0;
+            mnoise = 1e-4;            
+            obj.measure_noise = diag(mnoise * ones(1, 8));
             
-            obj.measure_noise = diag([mnoise * [1 1 1 1 1 1] vel_noise *[1 1 1] ...
-                                      rot_vel_noise * ones(1, 3)]);
-            obj.state = zeros(13, 1);
-            % Set initial rotation to 0
-            obj.state(4:7) = [1; 0; 0; 0]; 
+            obj.state = x_initial;
             
             % Covariance is 12 dimensional as quaternion is regarded
-            % as 3 elements, not 4
-            obj.state_covar = eye(12);        
+            % as 3 elements, not 4       
+            obj.state_covar = eye(12);
         end
         
-        function [x_out, P_out, nu_out] = step(this, z, dt)
+        function setPos(this, x)
+            this.state(1:7) = x(1:7);
+        end
+        
+        function [x_out, P_out, nu_out] = step(this, z)
             % Setup variables
             x = this.state; % Our last state
             P = this.state_covar; % Our last covariance 
             Q = this.process_noise; % Our process noise
             R = this.measure_noise; % Our measurement noise
+            
+            P
             
             % n is the dimensionality in the vector space
             n = size(P, 1);
@@ -57,29 +63,25 @@ classdef Filter < handle
             chi = add_x(W, x);
             
             % Project the sigmas using our process model
-            Y = A(chi, dt);
+            Y = this.A(chi);
             y_minus = calc_mean(Y);
 
             % W_p has the mean subtracted from Y and is in a
             % linear-friendly form (12xN)
             [P_yy, W_y] = calc_cov(Y, y_minus); % eqn (39, 64)
             
-            % Since Z = Y
-            Z = Y;
-            z_minus = y_minus;
-            P_zz = P_yy;
-            W_z = W_y;
+            % Transform to measurements
+            Z = this.H(Y);
+
+            z_minus = mean(Z, 2);
+            P_zz = cov(Z', 1);
             
             % Calculate the nu
-            % For all the regular elements we can subtract
-            diff = (z - z_minus);
-            % Do special quaternion subtracting
-            delta_qz = qmult(qinv(z_minus(4:7)'), z(4:7)')';
-            nu = [diff(1:3); quat_to_rotvec(delta_qz')'; diff(8:13)];
+            nu = z - z_minus;
             
-            P_xz       = P_zz;
+            P_yz       = crosscov(W_y', Z');
             P_vv       = P_zz + R;       % eqn (45, 69)
-            K          = P_xz * P_vv^-1; % eqn (72)
+            K          = P_yz * P_vv^-1; % eqn (72)
 
             x_out = add_x(K * nu, y_minus);
             
@@ -93,13 +95,6 @@ classdef Filter < handle
             this.state_covar = P_out;
         end
     end
-end
-
-function new_x = A(x, deltaT)
-    new_x = x;
-    % Update the position and the orientation
-    new_x(1:3) = x(1:3) + deltaT * x(8:10); % velocity
-    new_x(4:7) = qmult(x(4:7), rotvec_to_quat(x(11:13) * deltaT)); % angular velocity
 end
 
 %{
@@ -145,7 +140,7 @@ function x_bar = calc_mean(X)
         qbar = qmult(rotvec_to_quat(eavg'), qbar')';
         cnt  = cnt + 1;
     end
-    assert(cnt < maxcnt);
+    assert(cnt <= maxcnt);
     
     x_bar(4:7) = qbar;  % overwrite the q component
 end
@@ -153,6 +148,12 @@ end
 function [P, W] = calc_cov(X, x_bar)
     W = subtract_mean(X, x_bar);
     P = 1/size(W,2) * W*W';
+end
+
+function cc = crosscov(x, y)
+    xbar = bsxfun(@minus,x,mean(x));
+    ybar = bsxfun(@minus,y,mean(y));
+    cc =   xbar' * ybar / size(x,1);
 end
 
 function W = subtract_mean(chi, xbar)

@@ -1,24 +1,26 @@
-function [ X, T, NU  ] = algorithm(camParams, images)
+function [ X, T, FT, NU  ] = algorithm(camParams, images)
     K = transpose(camParams.IntrinsicMatrix);
+    tagSize = 0.1635;
     
     if ~exist('images', 'var')
         images = VideoSource('video.mp4', camParams);
     end
-    filter = Filter();
     
-    tagSize = 0.1635;
+    A = @(x) timeUpdate(x, 1);
+    H = @(x) measureTransform(K, tagSize, x);
+    filter = Filter(A, H, [0; 0; 10; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0]);
+    filter.setPos([0; 0; 5; 1; 0; 0; 0]);
+    
     detector = TagDetector(tagSize, camParams);
     tracker = TagTracker();
     
     X = [];
     T = [];
+    FT = [];
     NU = [];
     
     time = 0;
-    time_limit = 200;
-    
-    lastTag = zeros(13, 1);
-    lastTag(4:7) = [1 0 0 0];
+    time_limit = 1000;
     
     fig1 = figure(1);
     fig2 = figure(2);
@@ -39,28 +41,32 @@ function [ X, T, NU  ] = algorithm(camParams, images)
         
         tag = [];
 
-        tracker_tags = tracker.process(img, lastTag);
+        tracker_tags = tracker.process(img);
         if size(tracker_tags, 2) > 0
             tag = tracker_tags{1};
         end
         
-        detector_tags = detector.process(img, lastTag);
+        detector_tags = detector.process(img);
         if size(detector_tags, 2) > 0
             tag = detector_tags{1};
-            tracker.track(K, tagSize, tag);
+            %corr_x = Hinv(K, tagSize, tag);
+            %corr_x
+            %filter.setPos(corr_x);
+            tracker.track(tag);
         end
         
         % If we're debugging, feed in some generated data
-        %tag = generateTag(time, lastTag);
+        tag = generateTag(K, tagSize, time);
         
         if length(tag) > 0
-            lastTag = tag;
-
             time = time + 1;
-            [x, P, nu] = filter.step(tag, 1);
+            [x, P, nu] = filter.step(tag);
+            % Convert the x to a tag
+            filteredTag = measureTransform(K, tagSize, x);
 
             X = [X x];
             T = [T tag];
+            FT = [FT filteredTag];
             NU = [NU nu];
             
             %x
@@ -70,49 +76,71 @@ function [ X, T, NU  ] = algorithm(camParams, images)
                 color = 'y';
             end
             
-            drawTag(K, tagSize, tag, color);
-            drawTag(K, tagSize, x, 'blue');
+            drawTag(tag, color);
+            drawTag(filteredTag, 'blue');
         end
 
         drawnow
         hold off;
-        debug_plot(X, T, NU, fig2, fig3, fig4, fig5, fig6);
+        debug_plot(X, T, FT, NU, fig2, fig3, fig4, fig5, fig6);
         set(0, 'CurrentFigure', fig1)
     end
 end
 
-function tag = generateTag(time, lastTag)
-    tag = zeros(13, 1);
+% Time update function
+function xp = timeUpdate(x, deltaT)
+    xp = x;
+    for i=1:size(x, 2)
+        % Update the position and the orientation
+        xp(1:3, i) = x(1:3, i) + deltaT * x(8:10, i); % velocity
+        xp(4:7, i) = qmult(x(4:7, i)', rotvec_to_quat((x(11:13, i) * deltaT)')); % angular velocity
+    end
+end
+
+function z = measureTransform(K, tagSize, x)
+    x(4:7) = [1; 0; 0; 0];
+    z = projectTag(K, tagSize, x);
+end
+
+function x = Hinv(K, tagSize, z)
+    tagSize = tagSize/2;
+    pin = [-tagSize, tagSize; ...
+             tagSize tagSize; ...
+             tagSize -tagSize;...
+             -tagSize -tagSize];
+         
+    points = [ z([1, 3, 5, 7], :) z([2, 4, 6, 8], :) ];
+    H = homography_solve(pin, points);
+
+    [R, T] = homography_extract_pose(K, H);
+
+    % Comute a quaternion from a rot mat
+    rot = rotm_to_quat(R)';
+    x = [ T; rot];
+end
+
+function tag = generateTag(K, tagSize, time)
+    vel = 0.01;
+    x = zeros(13, 1);
     
     % Set the position
-    tag(1:3) = [time * 0.01; 0; 5];
-    %tag(1:3) = [0; 0; 5];
+    x(1:3) = [time * vel; 0; 5];
     
     % Rotate the tag around the y axis
     rVec = [0 time * 0.1 0];
-    %rVec = [0 0 0];
-    
     
     % Set the rotation
-    tag(4:7) = rotvec_to_quat(rVec);
-
-    % Apply noise
-    tag = tag +( 0.000005 * randn([13, 1]) );
-
-    % Set the velocity
-    tag(8:10) = [0.01; 0; 0];
-    %tag(8:10) = [0; 0; 0];
-
-    % Set the rotational velocity
-    tag(11:13) = [0; 0.1; 0];
-    %tag(11:13) = [0; 0; 0];
+    x(4:7) = rotvec_to_quat(rVec);
+    
+    % Now project the points
+    tag = measureTransform(K, tagSize, x);
+    
+    %tag = tag + ( 0.1 * randn([8, 1]) );
 end
 
-function drawTag(K, tagSize, tag, color)
-    points = projectTag(K, tagSize, tag);
-    
-    x = points(1, :);
-    y = points(2, :);
+function drawTag(tag, color)    
+    x = tag([1, 3, 5, 7], :)';
+    y = tag([2, 4, 6, 8], :)';
     
     plot([x x(1)], [y y(1)], '.-', 'Color', color);
 end
