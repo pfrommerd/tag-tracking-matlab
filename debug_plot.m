@@ -1,4 +1,4 @@
-function debug_plot(X, GT, T, NU, fig1, fig2, fig3, fig4, fig5)
+function debug_plot(X, GT, T, NU, fig1, fig2, fig3)
     ed = max(size(X,2), 1);
     st = max(ed - 30, 1);
     

@@ -12,8 +12,14 @@ classdef TagTracker < TagSource
             obj.initialImage = [];
         end
         
-        function track(this, tag)  
-            points = [tag([1, 3, 5, 7]) tag([2, 4, 6, 8])];
+        function track(this, tags)  
+            x = tags([1, 3, 5, 7], :);
+            x = x(:);
+            
+            y = tags([2, 4, 6, 8], :);
+            y = y(:);
+            
+            points = [x y];
             
             if ~this.initialized
                 if max(size(this.initialImage)) > 0
@@ -27,16 +33,14 @@ classdef TagTracker < TagSource
         end
         
         function tags = process(this, img)
-            tags = {};
+            tags = [];
             if ~this.initialized
                 this.initialImage = img;
                 return;
-            end
-            
+            end          
 
-            points = this.tracker.step(img);           
-            tag = reshape(points', [8, 1]);
-            tags{1} = tag;
+            points = this.tracker.step(img);    
+            tags = reshape(points', [8, size(points, 1) / 4]);
         end
     end
 end

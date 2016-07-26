@@ -1,4 +1,13 @@
-function [ X, T, FT, NU  ] = algorithm(camParams, images)
+%{
+classdef Algorithm
+    properties
+    end
+    methods
+    end
+end
+%}
+
+function [ M ] = algorithm(camParams, images)
     K = transpose(camParams.IntrinsicMatrix);
     tagSize = 0.1635;
     
@@ -8,65 +17,55 @@ function [ X, T, FT, NU  ] = algorithm(camParams, images)
     
     A = @(x) timeUpdate(x, 1);
     H = @(x) measureTransform(K, tagSize, x);
-    filter = Filter(A, H, [0; 0; 5; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0]);
+    filter = Filter(A, H);
+    init = false;
     
-    detector = TagDetector(tagSize, camParams);
-    tracker = TagTracker();
+    tagSource = FusedTagSource(tagSize, camParams);
+    %tagSource = DebugTagSource(H);
     
     X = [];
     T = [];
     GT = [];
     NU = [];
     
-    time = 0;
-    time_limit = 1000;
+    M = [];
     
     fig1 = figure(1);
     fig2 = figure(2);
     fig3 = figure(3);
     fig4 = figure(4);
-    fig5 = figure(5);
-    fig6 = figure(6);
     figure(1);
-    
-    
-    time = tic;
-    while images.hasImage() && time < time_limit
-        %toc(time);
-        %time = tic;
 
+    tic
+    
+    while images.hasImage()
         img = images.readImage();
         
         set(0, 'CurrentFigure', fig1)
-                
+
         tag = [];
-        gt = [];
         filteredTag = [];
 
-        %{
-        tracker_tags = tracker.process(img);
-        if size(tracker_tags, 2) > 0
-            tag = tracker_tags{1};
+        tags = tagSource.process(img);
+        if size(tags, 2) > 0
+            tag = tags(:, 1);
         end
         
-        detector_tags = detector.process(img);
-        if size(detector_tags, 2) > 0
-            tag = detector_tags{1};
-            tracker.track(tag);
-        end
-        gt = Hinv(K, tagSize, tag);        
-        %}
-        
-        % If we're debugging, feed in some generated data
-        [tag, gt] = generateTag(K, tagSize, time);
-        
-        %toc(time)
-        
+        % The ground truth, set this to zero for now
+        gt = [0; 0; 0; 1; 0; 0; 0];
+        %%{
         if length(tag) > 0
-            t = Hinv(K, tagSize, tag);        
+            t = Hinv(K, tagSize, tag);  
 
-            time = time + 1;
-            [x, P, nu] = filter.step(tag);
+            x = [];
+            if ~init     
+                filter.setState(t);
+                x = t;
+                nu = zeros([8, 1]);
+                init = true;
+            else
+                [x, P, nu] = filter.step(tag);
+            end
             
             % Convert the x to a tag
             filteredTag = measureTransform(K, tagSize, x);
@@ -75,8 +74,9 @@ function [ X, T, FT, NU  ] = algorithm(camParams, images)
             T = [T t];
             GT = [GT gt];
             NU = [NU nu];
+            
         end
-        
+        %}
         %toc(time)
 
         clf(fig1);
@@ -87,8 +87,10 @@ function [ X, T, FT, NU  ] = algorithm(camParams, images)
         drawTag(filteredTag, 'blue');
         
         drawnow
+        M = [ M getframe ];
+        
         hold off;
-        debug_plot(X, GT, T, NU, fig2, fig3, fig4, fig5, fig6);
+        debug_plot(X, GT, T, NU, fig2, fig3, fig4);
         set(0, 'CurrentFigure', fig1)
     end
 end
@@ -104,7 +106,7 @@ function xp = timeUpdate(x, deltaT)
 end
 
 function z = measureTransform(K, tagSize, x)
-    x(4:7, :) = [ones([1 size(x, 2)]); zeros([3 size(x, 2)])];
+    %x(4:7, :) = [ones([1 size(x, 2)]); zeros([3 size(x, 2)])];
     z = projectTag(K, tagSize, x);
 end
 
@@ -122,29 +124,13 @@ function x = Hinv(K, tagSize, z)
 
     % Comute a quaternion from a rot mat
     rot = rotm_to_quat(R)';
-    x = [ T; rot];
-end
-
-function [tag, x] = generateTag(K, tagSize, time)
-    vel = 0.01;
-    x = zeros(13, 1);
-    
-    % Set the position
-    x(1:3) = [time * vel; 0; 5];
-    
-    % Rotate the tag around the y axis
-    rVec = [0 time * 1 0];
-    
-    % Set the rotation
-    x(4:7) = rotvec_to_quat(rVec);
-    
-    % Now project the points
-    tag = measureTransform(K, tagSize, x);
-    
-    tag = tag + ( 0.01 * randn([8, 1]) );
+    x = [ T; rot; 0; 0; 0; 0; 0; 0];
 end
 
 function drawTag(tag, color)    
+    if max(size(tag)) < 1
+        return
+    end
     x = tag([1, 3, 5, 7], :)';
     y = tag([2, 4, 6, 8], :)';
     
@@ -152,5 +138,4 @@ function drawTag(tag, color)
     plot(x(2), y(2), 'o', 'Color', color);
     plot(x(3), y(3), '*', 'Color', color);
     plot(x(4), y(4), 's', 'Color', color);
-    %plot([x x(1)], [y y(1)], '.-', 'Color', color);
 end

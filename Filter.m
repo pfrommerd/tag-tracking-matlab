@@ -16,15 +16,15 @@ classdef Filter < handle
     end
     
     methods
-        function obj = Filter(A, H, x_initial)
+        function obj = Filter(A, H)
             obj.A = A;
             obj.H = H;
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
             pos_pnoise = 1e-5;
-            rot_pnoise = 1e-4;
+            rot_pnoise = 1e-3;
             vel_pnoise = 1e-4;
-            rot_vel_pnoise = 1e-4;
+            rot_vel_pnoise = 1e-3;
             %pnoise = 0;
             obj.process_noise = diag([pos_pnoise * [1 1 1] ...
                                       rot_pnoise * [1 1 1] ...
@@ -33,18 +33,18 @@ classdef Filter < handle
 
             % Measurement noise is in the same
             % 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            mnoise = 1e-4;            
+            mnoise = 1e-1;            
             obj.measure_noise = diag(mnoise * ones(1, 8));
             
-            obj.state = x_initial;
+            obj.state = [0;0;0;1;0;0;0;0;0;0;0;0;0];
             
             % Covariance is 12 dimensional as quaternion is regarded
             % as 3 elements, not 4       
-            obj.state_covar = 1 * eye(12);
+            obj.state_covar = 0 * eye(12);
         end
         
-        function setPose(this, x)
-            this.state(1:7) = x(1:7);
+        function setState(this, x)
+            this.state = x;
         end
         
         function [x_out, P_out, nu_out] = step(this, z)

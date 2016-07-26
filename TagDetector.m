@@ -22,11 +22,11 @@ classdef TagDetector < TagSource
             results = find_apriltags(img, this.tagSize, this.params);
             resultsSize = size(results);
 
-            tags = {};
+            tags = zeros(8, resultsSize(2));
             for i = 1:resultsSize(2)
                 r = results(i);
                 tag = reshape(r.corners, [8, 1]);
-                tags{i} = tag;
+                tags(:,i) = tag;
             end
             
         end
