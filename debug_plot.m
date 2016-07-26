@@ -1,6 +1,6 @@
-function debug_plot(X, T, FT, NU, fig1, fig2, fig3, fig4, fig5)
-    st = max(size(X,2) - 40, 1);
+function debug_plot(X, GT, T, NU, fig1, fig2, fig3, fig4, fig5)
     ed = max(size(X,2), 1);
+    st = max(ed - 30, 1);
     
     if size(X, 2) < 1
         return;
@@ -9,9 +9,15 @@ function debug_plot(X, T, FT, NU, fig1, fig2, fig3, fig4, fig5)
     change_figure(fig1);
     clf();
 
-    scatter3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'MarkerEdgeColor', 'red')
+    scatter3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'MarkerEdgeColor', 'blue')
     hold on;
-    plot3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'Color', 'red')
+    plot3(X(1,st:ed), X(2,st:ed), X(3,st:ed), 'Color', 'blue')
+    
+    scatter3(T(1,st:ed), T(2,st:ed), T(3,st:ed), 'MarkerEdgeColor', 'red')
+    plot3(T(1,st:ed), T(2,st:ed),  T(3,st:ed), 'Color', 'red')
+    
+    scatter3(GT(1,st:ed), GT(2,st:ed), GT(3,st:ed), 'MarkerEdgeColor', 'green')
+    plot3(GT(1,st:ed), GT(2,st:ed), GT(3,st:ed), 'Color', 'green')
     
     title('Position');
     

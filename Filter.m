@@ -21,9 +21,15 @@ classdef Filter < handle
             obj.H = H;
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            pnoise = 1e-1;
+            pos_pnoise = 1e-5;
+            rot_pnoise = 1e-4;
+            vel_pnoise = 1e-4;
+            rot_vel_pnoise = 1e-4;
             %pnoise = 0;
-            obj.process_noise = diag(pnoise * ones(1, 12));
+            obj.process_noise = diag([pos_pnoise * [1 1 1] ...
+                                      rot_pnoise * [1 1 1] ...
+                                      vel_pnoise * [1 1 1] ...
+                                      rot_vel_pnoise * [1 1 1]]);
 
             % Measurement noise is in the same
             % 12-dimensional matrix space [pos, rot, vel, rot_vel]
@@ -34,10 +40,10 @@ classdef Filter < handle
             
             % Covariance is 12 dimensional as quaternion is regarded
             % as 3 elements, not 4       
-            obj.state_covar = eye(12);
+            obj.state_covar = 1 * eye(12);
         end
         
-        function setPos(this, x)
+        function setPose(this, x)
             this.state(1:7) = x(1:7);
         end
         
@@ -45,10 +51,9 @@ classdef Filter < handle
             % Setup variables
             x = this.state; % Our last state
             P = this.state_covar; % Our last covariance 
+            
             Q = this.process_noise; % Our process noise
             R = this.measure_noise; % Our measurement noise
-            
-            P
             
             % n is the dimensionality in the vector space
             n = size(P, 1);
@@ -96,30 +101,6 @@ classdef Filter < handle
         end
     end
 end
-
-%{
-function X = create_sigmas(prev_state, prev_state_covar, alpha, k)
-    % N is a matrix which contains the offset for each
-    % sigma point
-    L = max(size(prev_state_covar));
-    lamda = alpha * alpha * (L + k) - L;
-
-    % Calculate our directional changes
-    N = sqrtm((L + lamda) .* prev_state_covar);
-    % Create the sigma points matrix
-    % by disturbing the previous state by every column of N
-    % and storing each resulting state vector in a column of X
-    X = zeros(13, 25);
-    
-    X(:, 1) = prev_state;
-    
-    for i=1:12
-        n = N(:,i);
-        X(:, 2*i) = disturb(prev_state, n);
-        X(:, 2*i + 1) = disturb(prev_state, -n);
-    end
-end
-%}
 
 function x_bar = calc_mean(X)
     x_bar = mean(X, 2);
