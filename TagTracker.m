@@ -3,23 +3,20 @@ classdef TagTracker < TagSource
         tracker
         initialImage
         initialized
+        
+        num_pts
     end
     
     methods
-        function obj = TagTracker()
+        function obj = TagTracker(np)
             obj.tracker = vision.PointTracker();
             obj.initialized = false;
             obj.initialImage = [];
+            obj.num_pts = np;
         end
         
-        function track(this, tags)  
-            x = tags([1, 3, 5, 7], :);
-            x = x(:);
-            
-            y = tags([2, 4, 6, 8], :);
-            y = y(:);
-            
-            points = [x y];
+        function track(this, tags)
+            points = reshape(tags, [2, size(tags, 1) * size(tags, 2) / 2])';
             
             if ~this.initialized
                 if max(size(this.initialImage)) > 0
@@ -40,7 +37,7 @@ classdef TagTracker < TagSource
             end          
 
             points = this.tracker.step(img);    
-            tags = reshape(points', [8, size(points, 1) / 4]);
+            tags = points_to_pvec(points, this.num_pts);            
         end
     end
 end

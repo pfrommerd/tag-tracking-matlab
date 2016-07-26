@@ -2,8 +2,8 @@ function [ H ] = homography_solve(in_pts, out_pts)
     % est_homography estimates the homography to transform each of the
     % in_pts to out_pts
     % Inputs:
-    %     in_pts: a 4x2 matrix of corner points in the video
-    %     out_pts: a 4x2 matrix of logo points that correspond to video_pts
+    %     in_pts: a nx2 matrix of corner points in the video
+    %     out_pts: a nx2 matrix of logo points that correspond to video_pts
     % Outputs:
     %     H: a 3x3 homography matrix such that outpts ~ H*video_pts
 

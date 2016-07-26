@@ -16,13 +16,13 @@ classdef Filter < handle
     end
     
     methods
-        function obj = Filter(A, H)
+        function obj = Filter(A, H, num_pts)
             obj.A = A;
             obj.H = H;
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
             pos_pnoise = 1e-5;
-            rot_pnoise = 1e-3;
+            rot_pnoise = 1e-4;
             vel_pnoise = 1e-4;
             rot_vel_pnoise = 1e-3;
             %pnoise = 0;
@@ -34,7 +34,7 @@ classdef Filter < handle
             % Measurement noise is in the same
             % 12-dimensional matrix space [pos, rot, vel, rot_vel]
             mnoise = 1e-1;            
-            obj.measure_noise = diag(mnoise * ones(1, 8));
+            obj.measure_noise = diag(mnoise * ones(1, 2 * num_pts));
             
             obj.state = [0;0;0;1;0;0;0;0;0;0;0;0;0];
             
@@ -47,7 +47,7 @@ classdef Filter < handle
             this.state = x;
         end
         
-        function [x_out, P_out, nu_out] = step(this, z)
+        function [x_out, z_out, P_out, nu_out] = step(this, z)
             % Setup variables
             x = this.state; % Our last state
             P = this.state_covar; % Our last covariance 
@@ -89,7 +89,7 @@ classdef Filter < handle
             K          = P_yz * P_vv^-1; % eqn (72)
 
             x_out = add_x(K * nu, y_minus);
-            
+            z_out = z_minus;
             P_out = P_yy - K * P_vv * K';
 
             % Debugging stuff

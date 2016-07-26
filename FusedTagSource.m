@@ -7,9 +7,9 @@ classdef FusedTagSource < TagSource
     end
     
     methods
-        function obj = FusedTagSource(tagSize, cameraParams)
-            obj.detector = TagDetector(tagSize, cameraParams);
-            obj.tracker = TagTracker();
+        function obj = FusedTagSource(tagSize, cameraParams, np)
+            obj.detector = TagDetector(tagSize, cameraParams, np);
+            obj.tracker = TagTracker(np);
         end
         
         function tags = process(this, img)

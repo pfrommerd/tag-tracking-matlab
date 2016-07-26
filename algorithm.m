@@ -17,15 +17,15 @@ function [ M ] = algorithm(camParams, images)
     
     A = @(x) timeUpdate(x, 1);
     H = @(x) measureTransform(K, tagSize, x);
-    filter = Filter(A, H);
+
+    tagSource = FusedTagSource(tagSize, camParams, 4);
+    filter = Filter(A, H, 4);
     init = false;
-    
-    tagSource = FusedTagSource(tagSize, camParams);
+
     %tagSource = DebugTagSource(H);
     
     X = [];
     T = [];
-    GT = [];
     NU = [];
     
     M = [];
@@ -52,7 +52,7 @@ function [ M ] = algorithm(camParams, images)
         end
         
         % The ground truth, set this to zero for now
-        gt = [0; 0; 0; 1; 0; 0; 0];
+        z = [];
         %%{
         if length(tag) > 0
             t = Hinv(K, tagSize, tag);  
@@ -61,10 +61,11 @@ function [ M ] = algorithm(camParams, images)
             if ~init     
                 filter.setState(t);
                 x = t;
+                z = tag;
                 nu = zeros([8, 1]);
                 init = true;
             else
-                [x, P, nu] = filter.step(tag);
+                [x, z, P, nu] = filter.step(tag);
             end
             
             % Convert the x to a tag
@@ -72,9 +73,7 @@ function [ M ] = algorithm(camParams, images)
 
             X = [X x];
             T = [T t];
-            GT = [GT gt];
-            NU = [NU nu];
-            
+            %NU = [NU nu];            
         end
         %}
         %toc(time)
@@ -85,12 +84,14 @@ function [ M ] = algorithm(camParams, images)
 
         drawTag(tag, 'r');
         drawTag(filteredTag, 'blue');
-        
+
+        drawTag(z, 'yellow');
+
         drawnow
-        M = [ M getframe ];
+        %M = [ M getframe ];
         
         hold off;
-        debug_plot(X, GT, T, NU, fig2, fig3, fig4);
+        debug_plot(X, T, NU, fig2, fig3, fig4);
         set(0, 'CurrentFigure', fig1)
     end
 end
@@ -107,7 +108,12 @@ end
 
 function z = measureTransform(K, tagSize, x)
     %x(4:7, :) = [ones([1 size(x, 2)]); zeros([3 size(x, 2)])];
-    z = projectTag(K, tagSize, x);
+    X = [[-tagSize/2; -tagSize/2; 0; 1] ...
+         [ tagSize/2; -tagSize/2; 0; 1] ...
+         [ tagSize/2;  tagSize/2; 0; 1] ...
+         [-tagSize/2;  tagSize/2; 0; 1]];
+     
+    z = projectTag(K, tagSize, x, X);
 end
 
 function x = Hinv(K, tagSize, z)
@@ -131,11 +137,12 @@ function drawTag(tag, color)
     if max(size(tag)) < 1
         return
     end
-    x = tag([1, 3, 5, 7], :)';
-    y = tag([2, 4, 6, 8], :)';
+    points = reshape(tag, [2, size(tag, 1) * size(tag, 2) / 2]);
+    x = points(1, :);
+    y = points(2, :);
     
     plot(x(1), y(1), 'x', 'Color', color);
     plot(x(2), y(2), 'o', 'Color', color);
     plot(x(3), y(3), '*', 'Color', color);
-    plot(x(4), y(4), 's', 'Color', color);
+    plot(x(4:end), y(4:end), 's', 'Color', color);
 end
