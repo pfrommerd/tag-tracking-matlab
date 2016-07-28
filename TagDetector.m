@@ -3,20 +3,17 @@ classdef TagDetector < TagSource
         num_pts
 
         tagSize
-        camParams
         params
         
         K
     end
     
     methods
-        function detector = TagDetector(tagSize, camParams, np)
+        function detector = TagDetector(tagSize, K, np)
             detector.tagSize = tagSize;
-            detector.K = transpose(camParams.IntrinsicMatrix);
-            params = [detector.K(1, 1) detector.K(2, 2) ...
-                      detector.K(1, 3) detector.K(2, 3)];
-            
-            detector.camParams = camParams;
+            detector.K = K;
+            params = [K(1, 1) K(2, 2) ...
+                      K(1, 3) K(2, 3)];            
             detector.params = params;
             detector.num_pts = np;
         end
@@ -25,12 +22,14 @@ classdef TagDetector < TagSource
             results = find_apriltags(img, this.tagSize, this.params);
             resultsSize = size(results);
 
-            tags = [];
+            tags = {};
             for i = 1:resultsSize(2)
                 r = results(i);
-                corners = [r.corners];
-                tag = reshape(corners, [size(corners, 2) * 2, 1]);
-                tags = [tags tag];
+                
+                tag.id = r.id;
+                tag.color = 'r';
+                tag.corners = r.corners';
+                tags{i} = tag;
             end
             
         end

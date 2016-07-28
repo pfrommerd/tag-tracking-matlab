@@ -7,18 +7,13 @@ classdef Algorithm
 end
 %}
 
-function [ M ] = algorithm(camParams, images)
-    K = transpose(camParams.IntrinsicMatrix);
+function [ M ] = algorithm(K, images)
     tagSize = 0.1635;
-    
-    if ~exist('images', 'var')
-        images = VideoSource('video.mp4', camParams);
-    end
-    
+
     A = @(x) timeUpdate(x, 1);
     H = @(x) measureTransform(K, tagSize, x);
 
-    tagSource = FusedTagSource(tagSize, camParams, 4);
+    tagSource = FusedTagSource(tagSize, K, 4);
     filter = Filter(A, H, 4);
     init = false;
 
@@ -35,25 +30,21 @@ function [ M ] = algorithm(camParams, images)
     fig3 = figure(3);
     fig4 = figure(4);
     figure(1);
-
-    tic
     
     while images.hasImage()
         img = images.readImage();
         
         set(0, 'CurrentFigure', fig1)
 
-        tag = [];
-        filteredTag = [];
+        %tag = [];
+        %filteredTag = [];
 
         tags = tagSource.process(img);
-        if size(tags, 2) > 0
-            tag = tags(:, 1);
-        end
         
         % The ground truth, set this to zero for now
         z = [];
-        %%{
+        
+        %{
         if length(tag) > 0
             t = Hinv(K, tagSize, tag);  
 
@@ -82,10 +73,10 @@ function [ M ] = algorithm(camParams, images)
         imshow(img);
         hold on;
 
-        drawTag(tag, 'r');
-        drawTag(filteredTag, 'blue');
+        drawTags(tags);
+        %drawTag(filteredTag, 'blue');
 
-        drawTag(z, 'yellow');
+        %drawTag(z, 'yellow');
 
         drawnow
         %M = [ M getframe ];
@@ -96,16 +87,24 @@ function [ M ] = algorithm(camParams, images)
     end
 end
 
-% Time update function
+% Time update function (A)
 function xp = timeUpdate(x, deltaT)
     xp = x;
     for i=1:size(x, 2)
         % Update the position and the orientation
-        xp(1:3, i) = x(1:3, i) + deltaT * x(8:10, i); % velocity
-        xp(4:7, i) = qmult(x(4:7, i)', rotvec_to_quat((x(11:13, i) * deltaT)')); % angular velocity
+        % velocity
+        xp(1:3, i) = x(1:3, i) + deltaT * x(8:10, i); 
+        % angular velocity
+        xp(4:7, i) = qmult(x(4:7, i)', rotvec_to_quat((x(11:13, i) * deltaT)')); 
+        
+        % Constrain the position so that we don't move through the camera
+        % and end up with a false minimum at z = -infinity or anything
+        % funky like that
+        xp(3, i) = max(xp(3, i), 0);
     end
 end
 
+% H function
 function z = measureTransform(K, tagSize, x)
     %x(4:7, :) = [ones([1 size(x, 2)]); zeros([3 size(x, 2)])];
     X = [[-tagSize/2; -tagSize/2; 0; 1] ...
@@ -116,6 +115,7 @@ function z = measureTransform(K, tagSize, x)
     z = projectTag(K, tagSize, x, X);
 end
 
+% The inverse of the H function
 function x = Hinv(K, tagSize, z)
     tagSize = tagSize/2;
     pin = [-tagSize, -tagSize; ...
@@ -133,11 +133,19 @@ function x = Hinv(K, tagSize, z)
     x = [ T; rot; 0; 0; 0; 0; 0; 0];
 end
 
-function drawTag(tag, color)    
+function drawTags(tags)
+    for i=1:length(tags)
+        drawTag(tags{i});
+    end
+end
+
+% Draws a tag (the corner points, in column vector form)
+function drawTag(tag)
     if max(size(tag)) < 1
         return
     end
-    points = reshape(tag, [2, size(tag, 1) * size(tag, 2) / 2]);
+    color = tag.color;
+    points = tag.corners';
     x = points(1, :);
     y = points(2, :);
     

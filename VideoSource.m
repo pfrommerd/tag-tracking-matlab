@@ -1,16 +1,23 @@
-classdef VideoSource < ImageSource
+classdef VideoSource < FrameSource
     %VIDEOSOURCE Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
         decoder
+        
+        useUndistort
         camParams
     end
     
     methods
         function source = VideoSource(file, camParams)
             source.decoder = VideoReader(file);
-            source.camParams = camParams;
+            
+            source.useUndistort = false;
+            if exist('camParams', 'var')
+                source.useUndistort = true;
+                source.camParams = camParams;
+            end
         end
         
         function hasImage = hasImage(this)
@@ -19,9 +26,12 @@ classdef VideoSource < ImageSource
         
         function img = readImage(this)
             imgRGB = readFrame(this.decoder);
-            imgGray = rgb2gray(imgRGB);
+            img = rgb2gray(imgRGB);
+            
             % Undistort the image
-            img = undistortImage(imgGray, this.camParams);
+            if this.useUndistort
+                img = undistortImage(img, this.camParams);
+            end
         end
     end
     

@@ -1,4 +1,4 @@
-classdef ImageSource < handle
+classdef FrameSource < handle
     %IMAGESOURCE Summary of this class goes here
     %   Detailed explanation goes here
     

@@ -21,9 +21,9 @@ classdef Filter < handle
             obj.H = H;
             % Process noise is in
             % the 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            pos_pnoise = 1e-5;
+            pos_pnoise = 1e-6;
             rot_pnoise = 1e-4;
-            vel_pnoise = 1e-4;
+            vel_pnoise = 1e-5;
             rot_vel_pnoise = 1e-3;
             %pnoise = 0;
             obj.process_noise = diag([pos_pnoise * [1 1 1] ...
@@ -33,7 +33,7 @@ classdef Filter < handle
 
             % Measurement noise is in the same
             % 12-dimensional matrix space [pos, rot, vel, rot_vel]
-            mnoise = 1e-1;            
+            mnoise = 1e-0;            
             obj.measure_noise = diag(mnoise * ones(1, 2 * num_pts));
             
             obj.state = [0;0;0;1;0;0;0;0;0;0;0;0;0];
@@ -84,6 +84,10 @@ classdef Filter < handle
             % Calculate the nu
             nu = z - z_minus;
             
+            
+            % Adjust the nu's to compensate for outliers
+            nu = filter_outliers(nu, 100);
+            
             P_yz       = crosscov(W_y', Z');
             P_vv       = P_zz + R;       % eqn (45, 69)
             K          = P_yz * P_vv^-1; % eqn (72)
@@ -100,6 +104,18 @@ classdef Filter < handle
             this.state_covar = P_out;
         end
     end
+end
+
+function y = filter_outliers(x, L)
+    mag = [norm([x(1) x(2)]); norm([x(3) x(4)]); norm([x(5) x(6)]); norm([x(7) x(8)])];
+    mult = [mag(1); mag(1); mag(2); mag(2); mag(3); mag(3); mag(4); mag(4)];
+    y = x ./ mult; % Divide the x's by their magnitudes
+    
+    % Change the magnitudes
+    mag = L * tanh(mag ./ L);
+    
+    mult = [mag(1); mag(1); mag(2); mag(2); mag(3); mag(3); mag(4); mag(4)];
+    y = y .* mult; % Scale back the y's
 end
 
 function x_bar = calc_mean(X)
