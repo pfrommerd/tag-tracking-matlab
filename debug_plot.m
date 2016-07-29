@@ -6,6 +6,13 @@ function debug_plot(X, T, NU, fig1, fig2, fig3)
         return;
     end
 
+    
+    change_figure(fig2);
+    clf();
+
+    scatter3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'MarkerEdgeColor', 'red')
+    hold on;
+    plot3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'Color', 'red')
     change_figure(fig1);
     clf();
 
@@ -17,13 +24,6 @@ function debug_plot(X, T, NU, fig1, fig2, fig3)
     plot3(T(1,st:ed), T(2,st:ed),  T(3,st:ed), 'Color', 'red')
 
     title('Position');
-    
-    change_figure(fig2);
-    clf();
-
-    scatter3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'MarkerEdgeColor', 'red')
-    hold on;
-    plot3(X(8,st:ed), X(9,st:ed), X(10,st:ed), 'Color', 'red')
     
     title('Velocity');
     
