@@ -1,21 +1,17 @@
 classdef TagDetector < TagSource
     properties
-        num_pts
-
         tagSize
-        params
-        
+        params        
         K
     end
     
     methods
-        function detector = TagDetector(tagSize, K, np)
+        function detector = TagDetector(K, tagSize)
             detector.tagSize = tagSize;
             detector.K = K;
             params = [K(1, 1) K(2, 2) ...
                       K(1, 3) K(2, 3)];            
             detector.params = params;
-            detector.num_pts = np;
         end
         
         function tags = process(this, img)
@@ -31,7 +27,6 @@ classdef TagDetector < TagSource
                 tag.corners = r.corners';
                 tags{i} = tag;
             end
-            
         end
     end
     
