@@ -19,7 +19,10 @@ classdef AprilTrack < TagSource
     methods
         function obj = AprilTrack(K, tagSize, totalTagSize, patchSize)
             obj.detector = TagDetector(K, tagSize);
-            obj.process_noise = 0.01 * ones([1, 12]);
+            obj.process_noise = [0.01 0.01 0.001 ...
+                                 0.005 0.005 0.005 ...
+                                 0.01 0.01 0.001 ...
+                                 0.001 0.001 0.001];
             
             obj.K = K;
             obj.tagSize = tagSize;
@@ -54,9 +57,9 @@ classdef AprilTrack < TagSource
                 this.refPatch = ...
                     extractPatch(this.K, x, this.projCoordinates, img);
 
-                x(1) = x(1) + 0.1;
+                %x(1) = x(1) + 0.1;
                 if size(this.particles, 2) < 1
-                    this.particles = repmat(x, 1, 200);
+                    this.particles = repmat(x, 1, 500);
 
                     n = size(this.particles, 2);
                     this.weights =  1/n * ones([1 n]);
@@ -74,7 +77,7 @@ classdef AprilTrack < TagSource
             
             [z, i] = max(this.weights);
             x = this.particles(:, i);
-            x(4:7) = [1 0 0 0];
+            x
                                 
             tags = projectTags(this.K, this.tagSize, x, 0, 'r');
             %tags = projectTags(this.K, this.tagSize, this.particles, 0, 'r');
@@ -151,8 +154,8 @@ function x = calcState(K, tagSize, corners)
     % Assume zero velocity/rot velocity
     % as we've detected the tag
     % so there probably isn't much movement
-    %x = [ T; rot; 0; 0; 0; 0; 0; 0];
-    x = [ T; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0];
+    x = [ T; rot; 0; 0; 0; 0; 0; 0];
+    %x = [ T; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0];
 
 end
 
@@ -162,7 +165,7 @@ end
 % Extracts a patch given an image
 function p = extractPatch(K, x, coordinates, img)
     % Create the homography
-    x(4:7) = [1; 0; 0; 0];
+    %x(4:7) = [1; 0; 0; 0];
     R = quat_to_rotm(x(4:7));
     T = x(1:3);
     H = K * [R(:, 1:2) T];

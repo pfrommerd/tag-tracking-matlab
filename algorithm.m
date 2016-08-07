@@ -3,7 +3,7 @@ function [ M ] = algorithm(K, images)
 
     tagSize = 0.1635;
 
-    tagSource = AprilTrack(K, tagSize, [0.1835 0.1835], [32 32]);
+    tagSource = AprilTrack(K, tagSize, [0.1835 0.1935], [128 128]);
     
     fig1 = figure(1);
     fig2 = figure(2);

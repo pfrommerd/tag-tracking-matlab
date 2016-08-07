@@ -23,7 +23,8 @@ function y = propagate_particles(x, r, deltaT)
         y(:, i) = xp(:) + [noise(1:6); 0; noise(7:12)];
         % Special case for the quaternion
         y(4:7, i) = qmult(xp(4:7)', rotvec_to_quat(noise(4:6)'))';
-        y(4:7, i) = [1 0 0 0];
+        %y(4:7, i) = [1 0 0 0];
+        %y(3, i) = x(3, i);
     end
 end
 
