@@ -4,43 +4,39 @@ classdef AprilTrack < TagSource
     
     properties
         detector
-        process_noise
         
         particles
         weights
         measurements
         
         refPatch
-        
+                
+        num_particles
+        lambda
+        process_noise
         K
         tagSize
-        % The projection Coordinates
+        
+        % The projection coordinates cached
         projCoordinates
     end
     
     methods
-        function obj = AprilTrack(K, tagSize, totalTagSize, patchSize)
-            obj.detector = TagDetector(K, tagSize);
-            %{
-            obj.process_noise = [0 0 0 ...
-                                 0 0 0 ...
-                                 0 0 0 ...
-                                 0 0 0];
-            %}
-            %%{
-            obj.process_noise = [0.01 0.01 0.01 ...
-                                 0.05 0.05 0.05 ...
-                                 0.001 0.001 0.001 ...
-                                 0.005 0.005 0.005];
-            %}
-            obj.K = K;
-            obj.tagSize = tagSize;
+        function obj = AprilTrack(params)
+            obj.detector = TagDetector(params.K, params.tagSize);
+
+            obj.num_particles = params.num_particles;
+            obj.lambda = params.lambda;
+            obj.process_noise = params.process_noise;
+            obj.K = params.K;
+            obj.tagSize = params.tagSize;
             
             obj.particles = [];
             obj.weights = [];
-            obj.refPatch = zeros(patchSize); % The last reference patch
+            obj.refPatch = zeros(params.patchSize); % The last reference patch
             
-            % Pre-calculate the projection coordinates
+            % Pre-calculate the projection coordinates            
+            totalTagSize = params.patchTagSize;
             coordinates = zeros([size(obj.refPatch) 2]);
             for i=1:size(obj.refPatch, 2)
                 for j=1:size(obj.refPatch, 1)
@@ -68,12 +64,13 @@ classdef AprilTrack < TagSource
                 %x(1) = x(1) + 0.1;
                 %x(4:7) = [1 0 0 0];
                 if size(this.particles, 2) < 1
-                    this.particles = repmat(x, 1, 2000);
+                    this.particles = repmat(x, 1, this.num_particles);
 
                     n = size(this.particles, 2);
                     this.weights =  1/n * ones([1 n]);
                 end
             end
+            
             [this.particles, this.weights] = ...
                 resample_particles(size(this.particles, 2), ...
                                     this.particles, ...
@@ -82,7 +79,7 @@ classdef AprilTrack < TagSource
                                                 this.process_noise, 1);
 
             this.measurements = calcMeasurements(this.K, this.projCoordinates, ...
-                                            this.particles, img, this.refPatch);
+                                            this.particles, img, this.refPatch, this.lambda);
             
             m = normalize(this.measurements);
             this.weights = this.weights .* m;
@@ -132,7 +129,7 @@ classdef AprilTrack < TagSource
             
             
             gen_weights = calcMeasurements(this.K, this.projCoordinates, ...
-                                    gen_particles, img, this.refPatch);
+                                    gen_particles, img, this.refPatch, this.lambda);
             
             gen_particles = [ gen_particles this.particles ];
             gen_weights = [ gen_weights this.measurements ];
@@ -160,15 +157,16 @@ classdef AprilTrack < TagSource
             g_quat = rotvec_to_quat(g_rotv);
             
             % Augment with the particle set
-            g_quat = [g_quat; this.particles(4:7, :)'];
+            gp_quat = [g_quat; this.particles(4:7, :)'];
             
-            fwd = repmat([0 0 -1 0], size(g_quat, 1), 1);
-            g_norm = qmult(qmult(g_quat, fwd), qinv(g_quat));
+            fwd = repmat([0 0 -1 0], size(gp_quat, 1), 1);
+            g_norm = qmult(qmult(gp_quat, fwd), qinv(gp_quat));
             
             gen_particles = repmat(x, 1, size(g_quat, 1));
             gen_particles(4:7, :) = g_quat';
             gen_z = calcMeasurements(this.K, this.projCoordinates, ...
-                        gen_particles, img, this.refPatch);
+                        gen_particles, img, this.refPatch, this.lambda);
+            gen_z = [ gen_z this.measurements ];
                     
             g_norm = bsxfun(@times, g_norm, (gen_z' + 1));
 
@@ -180,11 +178,11 @@ classdef AprilTrack < TagSource
 end
 
 % Will calculate the weights for given particles X
-function Z = calcMeasurements(K, projCoordinates, X, img, refPatch)
+function Z = calcMeasurements(K, projCoordinates, X, img, refPatch, lambda)
     Z = zeros([1 size(X, 2)]);
     for i=1:size(X, 2)
         p = extractPatch(K, X(:, i), projCoordinates, img);
-        z = measureDiff(p, refPatch);
+        z = measureDiff(p, refPatch, lambda);
         Z(i) = z;
     end
 end
@@ -251,7 +249,7 @@ function p = extractPatch(K, x, coordinates, img)
     p = reshape(v, size(p))';
 end
 
-function z = measureDiff(patchA, patchB)
+function z = measureDiff(patchA, patchB, lambda)
     if (size(patchA) ~= size(patchB))
         z = 0;
         return;
@@ -264,7 +262,7 @@ function z = measureDiff(patchA, patchB)
             z = 1;
         end
     end
-    z = exp(-8 * z);
+    z = exp(-lambda * z);
 end
 
 % This version used SAD

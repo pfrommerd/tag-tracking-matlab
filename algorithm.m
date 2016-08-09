@@ -2,8 +2,26 @@ function [ M ] = algorithm(K, images)
     M = [];
 
     tagSize = 0.1635;
-
-    tagSource = AprilTrack(K, tagSize, [0.1835 0.1935], [64 64]);
+    patchTagSize = [0.1835 0.1935];
+    patchSize = [64 64];
+    
+    num_particles = 5000;
+    lambda = 5;
+    process_noise = [0.01 0.01 0.01 ...
+                     0.02 0.02 0.02 ...
+                     0.001 0.001 0.001 ...
+                     0.005 0.005 0.005];
+    
+    params(1).tagSize = tagSize;
+    params(1).patchTagSize = patchTagSize;
+    params(1).patchSize = patchSize;
+    params(1).K = K;
+    
+    params(1).process_noise = process_noise;
+    params(1).num_particles = num_particles;
+    params(1).lambda = lambda;
+                 
+    tagSource = AprilTrack(params);
     
     fig1 = figure(1);
     fig2 = figure(2);
