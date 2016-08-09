@@ -61,19 +61,21 @@ classdef AprilTrack < TagSource
                                 
             if length(detector_tags) > 0
                 tag = detector_tags{1};
-                x = calcState(this.K, this.tagSize, tag.corners);
-                % Update the reference patch
-                this.refPatch = ...
-                    extractPatch(this.K, x, this.projCoordinates, img);
+                %if size(this.particles, 2) < 1
+                if tag.id == 23
+                    x = calcState(this.K, this.tagSize, tag.corners);
+                    x(4:7) = [1 0 0 0];
+                    % Update the reference patch
+                    this.refPatch = ...
+                        extractPatch(this.K, x, this.projCoordinates, img);
 
-                %x(1) = x(1) + 0.1;
-                %x(4:7) = [1 0 0 0];
-                if size(this.particles, 2) < 1
-                    this.particles = repmat(x, 1, this.num_particles);
+                    %x(1) = x(1) + 0.1;
+                    %if size(this.particles, 2) < 1
+                        this.particles = repmat(x, 1, this.num_particles);
 
-                    n = size(this.particles, 2);
-                    this.weights =  1/n * ones([1 n]);
-                end
+                        n = size(this.particles, 2);
+                        this.weights =  1/n * ones([1 n]);
+               end
             end
             
             [this.particles, this.weights] = ...
@@ -86,10 +88,10 @@ classdef AprilTrack < TagSource
 
             % Measure the y's
             this.measurements = calcMeasurements(this.K, this.projCoordinates, ...
-                                            this.particles, img, this.refPatch, this.lambda);
+                                            this.particles, img, this.refPatch);
             
             % Update the weights
-            m = normalize(this.measurements);
+            m = normalize(convMeasurement(this.measurements, this.lambda));
             
             % q(x) = 1/(k + alpha*w_prev) * p(x)
             % so
@@ -126,30 +128,16 @@ classdef AprilTrack < TagSource
         function debug_plot_pos(this, fig, x, img)
             set(0, 'CurrentFigure', fig);
             clf(fig);
+  
+            gen_particles = [ this.particles ];
             
-            g_x = linspace(-0.5, 0.5, 3);
-            g_y = linspace(-0.5, 0.5, 3);
-            g_z = linspace(0.2, 0.7, 3);
-
-            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
-            s_x = s_x(:);
-            s_y = s_y(:);
-            s_z = s_z(:);
-
-            gen_particles = repmat(x, 1, size(s_z, 1));
-            gen_particles(1:3, :) = [s_x, s_y, s_z]';
-            
-            
-            gen_weights = calcMeasurements(this.K, this.projCoordinates, ...
-                                    gen_particles, img, this.refPatch, this.lambda);
-            
-            gen_particles = [ gen_particles this.particles ];
-            gen_weights = [ gen_weights this.measurements ];
+            gen_w = [ this.weights ];
+            gen_m = [ convMeasurement(this.measurements, this.lambda) ];
             
             colormap('parula');
             caxis([0 1])
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_particles(3, :), 5, gen_weights);
+                     gen_particles(3, :), 5, gen_m);
         end
         
         function debug_plot_rot(this, fig, x, img)
@@ -176,27 +164,32 @@ classdef AprilTrack < TagSource
             
             gen_particles = repmat(x, 1, size(g_quat, 1));
             gen_particles(4:7, :) = g_quat';
-            gen_z = calcMeasurements(this.K, this.projCoordinates, ...
-                        gen_particles, img, this.refPatch, this.lambda);
-            gen_z = [ gen_z this.measurements ];
-                    
-            g_norm = bsxfun(@times, g_norm, (gen_z' + 1));
+            gen_z = zeros([1, size(gen_particles, 2)]);
+            
+            gen_w = [ gen_z this.weights ];
+            gen_m = [ gen_z convMeasurement(this.measurements, this.lambda) ];
+
+            g_norm = bsxfun(@times, g_norm, (gen_m' .* 1.5 + 1));
 
             colormap('parula');
             caxis([0 1])
-            scatter3(g_norm(:, 2)', g_norm(:, 3)', g_norm(:, 4)', 5, gen_z);
+            scatter3(g_norm(:, 2)', g_norm(:, 3)', g_norm(:, 4)', 5, gen_m);
         end
     end
 end
 
 % Will calculate the weights for given particles X
-function Z = calcMeasurements(K, projCoordinates, X, img, refPatch, lambda)
+function Z = calcMeasurements(K, projCoordinates, X, img, refPatch)
     Z = zeros([1 size(X, 2)]);
     for i=1:size(X, 2)
         p = extractPatch(K, X(:, i), projCoordinates, img);
-        z = measureDiff(p, refPatch, lambda);
+        z = measureDiff(p, refPatch);
         Z(i) = z;
     end
+end
+
+function w = convMeasurement(m, lambda)
+    w = exp(-lambda * (1 - m));
 end
 
 function x = calcState(K, tagSize, corners)
@@ -261,7 +254,7 @@ function p = extractPatch(K, x, coordinates, img)
     p = reshape(v, size(p))';
 end
 
-function z = measureDiff(patchA, patchB, lambda)
+function z = measureDiff(patchA, patchB)
     if (size(patchA) ~= size(patchB))
         z = 0;
         return;
@@ -269,12 +262,11 @@ function z = measureDiff(patchA, patchB, lambda)
         a = int16(patchA);
         b = int16(patchB);
 
-        z = 1 - abs(corr2(a, b));
+        z = abs(corr2(a, b));
         if z > 1 || isnan(z) % Some crazy value, like -Inf
             z = 1;
         end
     end
-    z = exp(-lambda * z);
 end
 
 % This version used SAD

@@ -3,16 +3,24 @@ function [ M ] = algorithm(K, images)
 
     tagSize = 0.1635;
     patchTagSize = [0.1835 0.1935];
-    patchSize = [48 48];
+    patchSize = [128 128];
     
-    num_particles = 2000;
+    num_particles = 1000;
     lambda = 8;
     k = 1;
     alpha = 1 - k;
-    process_noise = [0.02 0.02 0.02 ...
-                     0.025 0.025 0.025 ...
+    %%{
+    process_noise = [0.1 0.1 0.1 ...
                      0.001 0.001 0.001 ...
+                     0.002 0.002 0.002 ...
                      0.005 0.005 0.005];
+    %}
+    %{
+    process_noise = [0.1 0.1 0.1 ...
+                     0 0 0 ...
+                     0.0 0.0 0.0 ...
+                     0.00 0.00 0.00];
+    %}
     
     params(1).tagSize = tagSize;
     params(1).patchTagSize = patchTagSize;
@@ -39,9 +47,7 @@ function [ M ] = algorithm(K, images)
         det_img = images.readImage();
         img = det_img;
         %img = imgaussfilt(det_img, 10);
-
         tags = tagSource.process(img, det_img);
-        
         
         set(0, 'CurrentFigure', fig1)
 
