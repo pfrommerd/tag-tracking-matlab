@@ -3,12 +3,14 @@ function [ M ] = algorithm(K, images)
 
     tagSize = 0.1635;
     patchTagSize = [0.1835 0.1935];
-    patchSize = [64 64];
+    patchSize = [48 48];
     
-    num_particles = 5000;
-    lambda = 5;
-    process_noise = [0.01 0.01 0.01 ...
-                     0.02 0.02 0.02 ...
+    num_particles = 2000;
+    lambda = 8;
+    k = 1;
+    alpha = 1 - k;
+    process_noise = [0.02 0.02 0.02 ...
+                     0.025 0.025 0.025 ...
                      0.001 0.001 0.001 ...
                      0.005 0.005 0.005];
     
@@ -19,6 +21,8 @@ function [ M ] = algorithm(K, images)
     
     params(1).process_noise = process_noise;
     params(1).num_particles = num_particles;
+    params(1).k = k;
+    params(1).alpha = alpha;
     params(1).lambda = lambda;
                  
     tagSource = AprilTrack(params);

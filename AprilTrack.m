@@ -13,7 +13,10 @@ classdef AprilTrack < TagSource
                 
         num_particles
         lambda
+        k
+        alpha
         process_noise
+        
         K
         tagSize
         
@@ -27,6 +30,8 @@ classdef AprilTrack < TagSource
 
             obj.num_particles = params.num_particles;
             obj.lambda = params.lambda;
+            obj.k = params.k;
+            obj.alpha = params.alpha;
             obj.process_noise = params.process_noise;
             obj.K = params.K;
             obj.tagSize = params.tagSize;
@@ -75,14 +80,21 @@ classdef AprilTrack < TagSource
                 resample_particles(size(this.particles, 2), ...
                                     this.particles, ...
                                     this.weights);
-            this.particles = propagate_particles(this.particles, ...
-                                                this.process_noise, 1);
+            % Propagate through q
+            this.particles = q_smpl(this.particles, this.weights, 1, ...
+                                    this.process_noise, this.k, this.alpha);
 
+            % Measure the y's
             this.measurements = calcMeasurements(this.K, this.projCoordinates, ...
                                             this.particles, img, this.refPatch, this.lambda);
             
+            % Update the weights
             m = normalize(this.measurements);
-            this.weights = this.weights .* m;
+            
+            % q(x) = 1/(k + alpha*w_prev) * p(x)
+            % so
+            % p(x)/q(x) = alpha*w_prev + k
+            this.weights = this.weights .* m .* (this.alpha * this.weights + this.k);
             this.weights = normalize(this.weights);
             
             [z, i] = max(this.weights);
