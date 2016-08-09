@@ -3,19 +3,22 @@ function [ M ] = algorithm(K, images)
 
     tagSize = 0.1635;
 
-    tagSource = AprilTrack(K, tagSize, [0.1835 0.1935], [128 128]);
+    tagSource = AprilTrack(K, tagSize, [0.1835 0.1935], [64 64]);
     
     fig1 = figure(1);
     fig2 = figure(2);
     fig3 = figure(3);
     fig4 = figure(4);
+    fig5 = figure(5);
     
     figure(1);
     
     while images.hasImage()
-        img = images.readImage();
+        det_img = images.readImage();
+        img = det_img;
+        %img = imgaussfilt(det_img, 10);
 
-        tags = tagSource.process(img);
+        tags = tagSource.process(img, det_img);
         
         
         set(0, 'CurrentFigure', fig1)
@@ -27,7 +30,7 @@ function [ M ] = algorithm(K, images)
         hold on;
         drawTags(tags);
         
-        tagSource.debug_plot(fig2, fig3, fig4, img);
+        tagSource.debug_plot(fig2, fig3, fig4, fig5, img);
         
         drawnow;
     end

@@ -7,22 +7,20 @@ function y = propagate_particles(x, r, deltaT)
     y = zeros([size(x, 1) n]);
     
     for i=1:size(x, 2)
-        
         xp = x(:, i);
-        % Add the velocity
-        % add the rotational velocity
-        
-        xp(1:3) = x(1:3, i) + deltaT * x(8:10, i); 
-        % angular velocity
-        xp(4:7) = qmult(x(4:7, i)', ...
-                           rotvec_to_quat((x(11:13, i) * deltaT)')); 
-        
         % Add some noise
         noise = (r .* randn(1, 12))';
-
-        y(:, i) = xp(:) + [noise(1:6); 0; noise(7:12)];
+        xp(:) = xp(:) + [noise(1:6); 0; noise(7:12)];
         % Special case for the quaternion
-        y(4:7, i) = qmult(xp(4:7)', rotvec_to_quat(noise(4:6)'))';
+        xp(4:7) = qmult(x(4:7, i)', rotvec_to_quat(noise(4:6)'))';
+        
+        % Add the velocity
+        xp(1:3) = xp(1:3) + deltaT * xp(8:10); 
+        % angular velocity
+        xp(4:7) = qmult(xp(4:7)', ...
+                      rotvec_to_quat((x(11:13, i) * deltaT)')); 
+        
+        y(:, i) = xp;
         %y(4:7, i) = [1 0 0 0];
         %y(3, i) = x(3, i);
     end

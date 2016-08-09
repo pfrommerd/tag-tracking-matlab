@@ -8,6 +8,8 @@ classdef AprilTrack < TagSource
         
         particles
         weights
+        measurements
+        
         refPatch
         
         K
@@ -19,11 +21,18 @@ classdef AprilTrack < TagSource
     methods
         function obj = AprilTrack(K, tagSize, totalTagSize, patchSize)
             obj.detector = TagDetector(K, tagSize);
-            obj.process_noise = [0.01 0.01 0.001 ...
-                                 0.005 0.005 0.005 ...
-                                 0.01 0.01 0.001 ...
-                                 0.001 0.001 0.001];
-            
+            %{
+            obj.process_noise = [0 0 0 ...
+                                 0 0 0 ...
+                                 0 0 0 ...
+                                 0 0 0];
+            %}
+            %%{
+            obj.process_noise = [0.01 0.01 0.01 ...
+                                 0.05 0.05 0.05 ...
+                                 0.001 0.001 0.001 ...
+                                 0.005 0.005 0.005];
+            %}
             obj.K = K;
             obj.tagSize = tagSize;
             
@@ -46,20 +55,20 @@ classdef AprilTrack < TagSource
             obj.projCoordinates = coordinates;
         end
         
-        function tags = process(this, img)
-            detector_tags = this.detector.process(img);
-                                            
+        function tags = process(this, img, det_img)
+            detector_tags = this.detector.process(det_img);
+                                
             if length(detector_tags) > 0
                 tag = detector_tags{1};
                 x = calcState(this.K, this.tagSize, tag.corners);
-
                 % Update the reference patch
                 this.refPatch = ...
                     extractPatch(this.K, x, this.projCoordinates, img);
 
                 %x(1) = x(1) + 0.1;
+                %x(4:7) = [1 0 0 0];
                 if size(this.particles, 2) < 1
-                    this.particles = repmat(x, 1, 500);
+                    this.particles = repmat(x, 1, 2000);
 
                     n = size(this.particles, 2);
                     this.weights =  1/n * ones([1 n]);
@@ -72,63 +81,106 @@ classdef AprilTrack < TagSource
             this.particles = propagate_particles(this.particles, ...
                                                 this.process_noise, 1);
 
-            this.weights = calcWeights(this.K, this.projCoordinates, ...
-                                    this.particles, img, this.refPatch);
+            this.measurements = calcMeasurements(this.K, this.projCoordinates, ...
+                                            this.particles, img, this.refPatch);
+            
+            m = normalize(this.measurements);
+            this.weights = this.weights .* m;
+            this.weights = normalize(this.weights);
             
             [z, i] = max(this.weights);
             x = this.particles(:, i);
             x
-                                
+            
             tags = projectTags(this.K, this.tagSize, x, 0, 'r');
-            %tags = projectTags(this.K, this.tagSize, this.particles, 0, 'r');
         end
         
-        function debug_plot(this, fig1, fig2, fig3, img)
+        function debug_plot(this, fig1, fig2, fig3, fig4, img)
             [z, i] = max(this.weights);
             x = this.particles(:, i);
             
-            set(0, 'CurrentFigure', fig2);
-            clf(fig2);
-            imshow(this.refPatch);
-            
             set(0, 'CurrentFigure', fig3);
             clf(fig3);
+            colormap(fig3, gray(256));
+            image(this.refPatch);
+            
+            set(0, 'CurrentFigure', fig4);
+            clf(fig4);
+            colormap(fig4, gray(256));
             p = extractPatch(this.K, x, this.projCoordinates, img);
-            imshow(p);
+            image(p);
+           
             
-            set(0, 'CurrentFigure', fig1);
+            this.debug_plot_pos(fig1, x, img);
+            this.debug_plot_rot(fig2, x, img);
+        end
+        function debug_plot_pos(this, fig, x, img)
+            set(0, 'CurrentFigure', fig);
+            clf(fig);
             
-            g_x = linspace(-0.5, 0.5, 50);
-            g_y = linspace(-0.5, 0.5, 50);
-            %g_x = linspace(0, 0.3, 30);
-            %g_y = linspace(-0.1, 0.1, 30);
-            [s_x, s_y] = meshgrid(g_x, g_y);
-            s_x = s_x(:)';
-            s_y = s_y(:)';
-            one = ones(size(s_x));
-            zero = zeros(size(s_x));
+            g_x = linspace(-0.5, 0.5, 3);
+            g_y = linspace(-0.5, 0.5, 3);
+            g_z = linspace(0.2, 0.7, 3);
 
-            gen_particles = [s_x; s_y; x(3) * one; one; zero; zero; zero; zero; ...
-                                 zero; zero; zero; zero; zero];
-            gen_weights = calcWeights(this.K, this.projCoordinates, ...
+            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
+            s_x = s_x(:);
+            s_y = s_y(:);
+            s_z = s_z(:);
+
+            gen_particles = repmat(x, 1, size(s_z, 1));
+            gen_particles(1:3, :) = [s_x, s_y, s_z]';
+            
+            
+            gen_weights = calcMeasurements(this.K, this.projCoordinates, ...
                                     gen_particles, img, this.refPatch);
-
-            w  = reshape(gen_weights', [length(g_y) length(g_x)]);
             
-            clf(fig1);
-            surf(g_x, g_y, w);
+            gen_particles = [ gen_particles this.particles ];
+            gen_weights = [ gen_weights this.measurements ];
+            
             colormap('parula');
-
-            % Plot the current particles on top
-            hold on;
+            caxis([0 1])
+            scatter3(gen_particles(1, :), gen_particles(2, :), ...
+                     gen_particles(3, :), 5, gen_weights);
+        end
+        
+        function debug_plot_rot(this, fig, x, img)
+            set(0, 'CurrentFigure', fig);
+            clf(fig);
             
-            plot3(this.particles(1, :), this.particles(2, :), this.weights, 'x', 'Color', 'g');
+            % Plots angular measurements
+            g_x = linspace(-10, 10, 5);
+            g_y = linspace(-10, 10, 5);
+            g_z = linspace(-10, 10, 5);
+            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
+            s_x = s_x(:);
+            s_y = s_y(:);
+            s_z = s_z(:);
+
+            g_rotv = [s_x s_y s_z];
+            g_quat = rotvec_to_quat(g_rotv);
+            
+            % Augment with the particle set
+            g_quat = [g_quat; this.particles(4:7, :)'];
+            
+            fwd = repmat([0 0 -1 0], size(g_quat, 1), 1);
+            g_norm = qmult(qmult(g_quat, fwd), qinv(g_quat));
+            
+            gen_particles = repmat(x, 1, size(g_quat, 1));
+            gen_particles(4:7, :) = g_quat';
+            gen_z = calcMeasurements(this.K, this.projCoordinates, ...
+                        gen_particles, img, this.refPatch);
+                    
+            g_norm = bsxfun(@times, g_norm, (gen_z' + 1));
+
+            colormap('parula');
+            caxis([0 1])
+            scatter3(g_norm(:, 2)', g_norm(:, 3)', g_norm(:, 4)', 5, gen_z);
         end
     end
 end
 
 % Will calculate the weights for given particles X
-function Z = calcWeights(K, projCoordinates, X, img, refPatch)
+function Z = calcMeasurements(K, projCoordinates, X, img, refPatch)
     Z = zeros([1 size(X, 2)]);
     for i=1:size(X, 2)
         p = extractPatch(K, X(:, i), projCoordinates, img);
@@ -199,20 +251,43 @@ function p = extractPatch(K, x, coordinates, img)
     p = reshape(v, size(p))';
 end
 
-
 function z = measureDiff(patchA, patchB)
     if (size(patchA) ~= size(patchB))
         z = 0;
         return;
-    end
-        
-    a = patchA(:);
-    b = patchB(:);
+    else
+        a = int16(patchA);
+        b = int16(patchB);
 
-    z = abs(corr2(a, b));
-    if z > 1 || isnan(z) % Some crazy value, like +/-Inf
-        z = 0;
+        z = 1 - abs(corr2(a, b));
+        if z > 1 || isnan(z) % Some crazy value, like -Inf
+            z = 1;
+        end
     end
+    z = exp(-8 * z);
 end
 
+% This version used SAD
+%{
+function z = measureDiff(patchA, patchB)
+    if (size(patchA) ~= size(patchB))
+        z = 0;
+        return;
+    else
+        a = int16(patchA);
+        b = int16(patchB);
 
+        %z = 1 - abs(corr2(a, b));
+        d = (a-b).^2;
+        z = sum(d(:));
+        if z < 0 || isnan(z) % Some crazy value, like -Inf
+            z = 0;
+        end
+    end
+    z = exp(-0.000001 * z);
+end
+%}
+
+function wn = normalize(w)
+    wn = w ./ sum(w);
+end
