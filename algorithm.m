@@ -3,13 +3,25 @@ function [ M ] = algorithm(K, images)
 
     tagSize = 0.1635;
     patchTagSize = [0.1835 0.1935];
-    patchSize = [128 128];
+    patchSize = [64 64];
     
-    num_particles = 1000;
-    lambda = 8;
-    k = 1;
+    num_particles = 1500;
+    lambda = 13;
+    k = 5;
     alpha = 1 - k;
+    %{
+    process_noise = [0 0 0 ...
+                     0.1 0.1 0.1 ...
+                     0 0 0 ...
+                     0 0 0];
+    %}
     %%{
+    process_noise = [0.1 0.1 0.1 ...
+                     0.5 0.5 0.5 ...
+                     0.0 0.0 0.0 ...
+                     0.00 0.00 0.00];
+    %}
+    %{
     process_noise = [0.1 0.1 0.1 ...
                      0.001 0.001 0.001 ...
                      0.002 0.002 0.002 ...

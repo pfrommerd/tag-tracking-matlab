@@ -5,6 +5,8 @@ classdef AprilTrack < TagSource
     properties
         detector
         
+        x
+        
         particles
         weights
         measurements
@@ -19,6 +21,9 @@ classdef AprilTrack < TagSource
         
         K
         tagSize
+        patchSize
+        totalTagSize
+
         
         % The projection coordinates cached
         projCoordinates
@@ -28,6 +33,8 @@ classdef AprilTrack < TagSource
         function obj = AprilTrack(params)
             obj.detector = TagDetector(params.K, params.tagSize);
 
+            obj.x = zeros([13 1]);
+            
             obj.num_particles = params.num_particles;
             obj.lambda = params.lambda;
             obj.k = params.k;
@@ -35,13 +42,15 @@ classdef AprilTrack < TagSource
             obj.process_noise = params.process_noise;
             obj.K = params.K;
             obj.tagSize = params.tagSize;
+            obj.totalTagSize = params.patchTagSize;
+            obj.patchSize = params.patchSize;
             
             obj.particles = [];
             obj.weights = [];
             obj.refPatch = zeros(params.patchSize); % The last reference patch
             
-            % Pre-calculate the projection coordinates            
-            totalTagSize = params.patchTagSize;
+            % Pre-calculate the projection coordinates                        
+            totalTagSize = obj.totalTagSize;
             coordinates = zeros([size(obj.refPatch) 2]);
             for i=1:size(obj.refPatch, 2)
                 for j=1:size(obj.refPatch, 1)
@@ -52,8 +61,9 @@ classdef AprilTrack < TagSource
                                             idx(2) * totalTagSize(2)];
                 end
             end
-            
-            obj.projCoordinates = coordinates;
+            obj.projCoordinates = reshape(permute(coordinates, [3, 2, 1]), ...
+                                    2, size(obj.refPatch, 1) * size(obj.refPatch, 2));
+            obj.projCoordinates = [obj.projCoordinates; ones([1 size(obj.projCoordinates, 2)])];
         end
         
         function tags = process(this, img, det_img)
@@ -61,20 +71,19 @@ classdef AprilTrack < TagSource
                                 
             if length(detector_tags) > 0
                 tag = detector_tags{1};
-                %if size(this.particles, 2) < 1
-                if tag.id == 23
+                if size(this.particles, 2) < 1
                     x = calcState(this.K, this.tagSize, tag.corners);
-                    x(4:7) = [1 0 0 0];
+                    %x(4:7) = [1 0 0 0];
                     % Update the reference patch
                     this.refPatch = ...
-                        extractPatch(this.K, x, this.projCoordinates, img);
+                        extractPatch(this.K, this.projCoordinates, this.patchSize, x, img);
 
                     %x(1) = x(1) + 0.1;
                     %if size(this.particles, 2) < 1
-                        this.particles = repmat(x, 1, this.num_particles);
-
-                        n = size(this.particles, 2);
-                        this.weights =  1/n * ones([1 n]);
+                    this.particles = repmat(x, 1, this.num_particles);
+                    
+                    n = size(this.particles, 2);
+                    this.weights =  1/n * ones([1 n]);
                end
             end
             
@@ -82,14 +91,13 @@ classdef AprilTrack < TagSource
                 resample_particles(size(this.particles, 2), ...
                                     this.particles, ...
                                     this.weights);
+            
             % Propagate through q
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.process_noise, this.k, this.alpha);
-
             % Measure the y's
             this.measurements = calcMeasurements(this.K, this.projCoordinates, ...
                                             this.particles, img, this.refPatch);
-            
             % Update the weights
             m = normalize(convMeasurement(this.measurements, this.lambda));
             
@@ -102,7 +110,8 @@ classdef AprilTrack < TagSource
             [z, i] = max(this.weights);
             x = this.particles(:, i);
             x
-            
+            d = x - this.x
+            this.x = x;
             tags = projectTags(this.K, this.tagSize, x, 0, 'r');
         end
         
@@ -118,7 +127,7 @@ classdef AprilTrack < TagSource
             set(0, 'CurrentFigure', fig4);
             clf(fig4);
             colormap(fig4, gray(256));
-            p = extractPatch(this.K, x, this.projCoordinates, img);
+            p = extractPatch(this.K, this.projCoordinates, this.patchSize, x, img);
             image(p);
            
             
@@ -129,10 +138,18 @@ classdef AprilTrack < TagSource
             set(0, 'CurrentFigure', fig);
             clf(fig);
   
-            gen_particles = [ this.particles ];
+            g_x = linspace(-1, 1, 3);
+            g_y = linspace(-1, 1, 3);
+            g_z = linspace(0, 5, 3);
+            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
+            s_x = s_x(:);
+            s_y = s_y(:);
+            s_z = s_z(:);
+            
+            gen_particles = [ this.particles(1:3, :) [s_x s_y s_z]' ];
             
             gen_w = [ this.weights ];
-            gen_m = [ convMeasurement(this.measurements, this.lambda) ];
+            gen_m = [ convMeasurement(this.measurements, this.lambda) zeros([1, size(s_x, 1)])];
             
             colormap('parula');
             caxis([0 1])
@@ -169,7 +186,7 @@ classdef AprilTrack < TagSource
             gen_w = [ gen_z this.weights ];
             gen_m = [ gen_z convMeasurement(this.measurements, this.lambda) ];
 
-            g_norm = bsxfun(@times, g_norm, (gen_m' .* 1.5 + 1));
+            g_norm = bsxfun(@times, g_norm, (gen_m' + 1));
 
             colormap('parula');
             caxis([0 1])
@@ -182,7 +199,7 @@ end
 function Z = calcMeasurements(K, projCoordinates, X, img, refPatch)
     Z = zeros([1 size(X, 2)]);
     for i=1:size(X, 2)
-        p = extractPatch(K, X(:, i), projCoordinates, img);
+        p = extractPatch(K, projCoordinates, size(refPatch), X(:, i),  img);
         z = measureDiff(p, refPatch);
         Z(i) = z;
     end
@@ -190,6 +207,7 @@ end
 
 function w = convMeasurement(m, lambda)
     w = exp(-lambda * (1 - m));
+    %w = m;
 end
 
 function x = calcState(K, tagSize, corners)
@@ -218,21 +236,19 @@ end
 % Utility functions for comparing patches
 
 % Extracts a patch given an image
-function p = extractPatch(K, x, coordinates, img)
+function p = extractPatch(K, X, patchSize, x, img)
+    % The patch
+    p = zeros(patchSize);
+
     % Create the homography
-    %x(4:7) = [1; 0; 0; 0];
     R = quat_to_rotm(x(4:7));
     T = x(1:3);
     H = K * [R(:, 1:2) T];
 
-    p = zeros([size(coordinates,1) size(coordinates, 2)]);
-    X = reshape(permute(coordinates, [3, 2, 1]), ...
-                2, size(p, 1) * size(p, 2));
     c = homography_project(H, X);
-    c = round(c);
-    
-    x = c(1, :);
-    y = c(2, :);
+
+    x = round(c(1, :));
+    y = round(c(2, :));
 
     if length(find(x < 1)) > 0 || ...
        length(find(y < 1)) > 0 || ...
@@ -242,12 +258,6 @@ function p = extractPatch(K, x, coordinates, img)
         p = [];
         return;
     end
-    
-    x(find(x < 1)) = 1;
-    y(find(y < 1)) = 1;
-
-    x(find(x > size(img, 2))) = size(img, 2);
-    y(find(y > size(img, 1))) = size(img, 1);
     
     idx = sub2ind(size(img), y, x);
     v = img(idx);
