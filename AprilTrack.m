@@ -86,12 +86,12 @@ classdef AprilTrack < TagSource
                     this.weights =  1/n * ones([1 n]);
                end
             end
-            
+
             [this.particles, this.weights] = ...
                 resample_particles(size(this.particles, 2), ...
                                     this.particles, ...
                                     this.weights);
-            
+
             % Propagate through q
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.process_noise, this.k, this.alpha);
@@ -100,7 +100,7 @@ classdef AprilTrack < TagSource
                                             this.particles, img, this.refPatch);
             % Update the weights
             m = normalize(convMeasurement(this.measurements, this.lambda));
-            
+
             % q(x) = 1/(k + alpha*w_prev) * p(x)
             % so
             % p(x)/q(x) = alpha*w_prev + k
@@ -109,8 +109,11 @@ classdef AprilTrack < TagSource
             
             [z, i] = max(this.weights);
             x = this.particles(:, i);
-            x
-            d = x - this.x
+            %x
+            d = x - this.x;
+            x(8:10)
+            d(1:3)
+            verr = x(8:10) - d(1:3)
             this.x = x;
             tags = projectTags(this.K, this.tagSize, x, 0, 'r');
         end

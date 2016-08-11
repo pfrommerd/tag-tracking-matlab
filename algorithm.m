@@ -1,38 +1,49 @@
-function [ M ] = algorithm(K, images)
+function [ M ] = algorithm(K, images, record)
     M = [];
 
     tagSize = 0.1635;
-    patchTagSize = [0.1835 0.1935];
+    patchTagSize = [0.1835 0.1835];
     patchSize = [64 64];
     
-    num_particles = 1500;
-    lambda = 13;
-    k = 5;
+    num_particles = 2000;
+    lambda = 8;
+    k = 1;
     alpha = 1 - k;
+    %alpha = 0.3;
     %{
-    process_noise = [0 0 0 ...
-                     0.1 0.1 0.1 ...
+    process_noise = [0.001 0.001 0.001 ...
+                     0.001 0.001 0.001 ...
                      0 0 0 ...
                      0 0 0];
     %}
-    %%{
-    process_noise = [0.1 0.1 0.1 ...
-                     0.5 0.5 0.5 ...
-                     0.0 0.0 0.0 ...
-                     0.00 0.00 0.00];
-    %}
+
     %{
     process_noise = [0.1 0.1 0.1 ...
                      0.001 0.001 0.001 ...
                      0.002 0.002 0.002 ...
                      0.005 0.005 0.005];
     %}
+    % Setup for seq1
     %{
-    process_noise = [0.1 0.1 0.1 ...
-                     0 0 0 ...
-                     0.0 0.0 0.0 ...
-                     0.00 0.00 0.00];
+    process_noise = [0.8 0.8 0.8 ...
+                     0.3 0.3 0.3 ...
+                     0.01 0.01 0.01 ...
+                     0.01 0.01 0.01];
     %}
+    % Setup for video.mp4
+    %%{
+    process_noise = [0.01 0.01 0.01 ...
+                     0.05 0.05 0.05 ...
+                     0.02 0.02 0.02 ...
+                     0.01 0.01 0.01];
+    %}
+    %{
+    process_noise = [0.03 0.03 0.03 ...
+             0.08 0.08 0.08 ...
+             0.0 0.0 0.0 ...
+             0.00 0.00 0.00];
+    %}  
+
     
     params(1).tagSize = tagSize;
     params(1).patchTagSize = patchTagSize;
@@ -69,10 +80,14 @@ function [ M ] = algorithm(K, images)
         image(img);
         hold on;
         drawTags(tags);
-        
+
         tagSource.debug_plot(fig2, fig3, fig4, fig5, img);
         
-        drawnow;
+        drawnow;        
+        
+        if record
+            M = [ M getframe(fig1) ];
+        end
     end
 end
 
