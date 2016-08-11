@@ -37,7 +37,7 @@ classdef TagDetector < TagSource
                 % Comute a quaternion from a rot mat
                 rot = rotm_to_quat(R)';
                 state = [ T; rot; 0; 0; 0; 0; 0; 0];
-                
+
                 tag.id = r.id;
                 tag.state = state;
                 tag.color = 'r';

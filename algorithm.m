@@ -16,20 +16,21 @@ function [ M ] = algorithm(K, images, record)
         state(1:3) = state(1:3) + x(1:3);
         state(4:7) = x(4:7);
     end
+
     function x = invtransform(state, transState)
         x = state;
         x(1:3) = transState(1:3) - state(1:3);
-        x(4:7) = state(4:7);
+        x(4:7) = transState(4:7);
     end
     
-    mmParams(1).num_particles = 1000;
+    mmParams(1).num_particles = 2000;
     mmParams(1).process_noise = [0.01 0.01 0.01 ...
-                                 0.01 0.01 0.01 ...
+                                 0.1 0.1 0.1 ...
                                  0 0 0 ...
                                  0 0 0];
     mmParams(1).k = 1;
     mmParams(1).alpha = 0;
-    mmParams(1).lambda = 8;
+    mmParams(1).lambda = 13;
     
     
     model = MotionModel(mmParams, @transform, @invtransform);
@@ -87,7 +88,7 @@ function drawTags(tags)
     end
 end
 
-% Draws a (projected!) tag (the corner points, in column vector form)
+% Draws a (projected!) tag
 function drawTag(tag)
     if max(size(tag)) < 1
         return

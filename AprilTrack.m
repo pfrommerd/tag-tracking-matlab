@@ -55,7 +55,7 @@ classdef AprilTrack < TagSource
         
         function tagsDetected(this, tags, img)
             % Create a bunch of reference patches
-            % A map from tagID -> refPatch
+            % A map from tagID -> tag
             detectedTagsMap = containers.Map('KeyType', 'int64', 'ValueType', 'any');
             for i=1:length(tags)
                 t = tags{i};
