@@ -1,62 +1,48 @@
 function [ M ] = algorithm(K, images, record)
     M = [];
 
-    tagSize = 0.1635;
+    tagSize = [0.1635 0.1635];
     patchTagSize = [0.1835 0.1835];
     patchSize = [64 64];
-    
-    num_particles = 2000;
-    lambda = 8;
-    k = 1;
-    alpha = 1 - k;
-    %alpha = 0.3;
-    %{
-    process_noise = [0.001 0.001 0.001 ...
-                     0.001 0.001 0.001 ...
-                     0 0 0 ...
-                     0 0 0];
-    %}
-
-    %{
-    process_noise = [0.1 0.1 0.1 ...
-                     0.001 0.001 0.001 ...
-                     0.002 0.002 0.002 ...
-                     0.005 0.005 0.005];
-    %}
-    % Setup for seq1
-    %{
-    process_noise = [0.8 0.8 0.8 ...
-                     0.3 0.3 0.3 ...
-                     0.01 0.01 0.01 ...
-                     0.01 0.01 0.01];
-    %}
-    % Setup for video.mp4
-    %%{
-    process_noise = [0.01 0.01 0.01 ...
-                     0.05 0.05 0.05 ...
-                     0.02 0.02 0.02 ...
-                     0.01 0.01 0.01];
-    %}
-    %{
-    process_noise = [0.03 0.03 0.03 ...
-             0.08 0.08 0.08 ...
-             0.0 0.0 0.0 ...
-             0.00 0.00 0.00];
-    %}  
-
     
     params(1).tagSize = tagSize;
     params(1).patchTagSize = patchTagSize;
     params(1).patchSize = patchSize;
     params(1).K = K;
-    
-    params(1).process_noise = process_noise;
-    params(1).num_particles = num_particles;
-    params(1).k = k;
-    params(1).alpha = alpha;
-    params(1).lambda = lambda;
-                 
     tagSource = AprilTrack(params);
+
+    % Motion model stuff
+    function state = transform(state, x)
+        state(1:3) = state(1:3) + x(1:3);
+        state(4:7) = x(4:7);
+    end
+    function x = invtransform(state, transState)
+        x = state;
+        x(1:3) = transState(1:3) - state(1:3);
+        x(4:7) = state(4:7);
+    end
+    
+    mmParams(1).num_particles = 1000;
+    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+                                 0.01 0.01 0.01 ...
+                                 0 0 0 ...
+                                 0 0 0];
+    mmParams(1).k = 1;
+    mmParams(1).alpha = 0;
+    mmParams(1).lambda = 8;
+    
+    
+    model = MotionModel(mmParams, @transform, @invtransform);
+    % Add the tags
+    t(1).id = 0;
+    t(1).color = 'r';
+    t(1).state = [0; 0; 0; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0];
+    
+    model.addTag(t);
+    model.setTagWeight(0, 1);
+    
+    tagSource.addMotionModel(model);
+    
     
     fig1 = figure(1);
     fig2 = figure(2);
@@ -67,24 +53,28 @@ function [ M ] = algorithm(K, images, record)
     figure(1);
     
     while images.hasImage()
-        det_img = images.readImage();
-        img = det_img;
-        %img = imgaussfilt(det_img, 10);
-        tags = tagSource.process(img, det_img);
-        
-        set(0, 'CurrentFigure', fig1)
+        img = images.readImage();
 
+        set(0, 'CurrentFigure', fig2)
+        clf(fig2);
+
+        tags = tagSource.process(img);
+
+        set(0, 'CurrentFigure', fig1)
         clf(fig1);
         colormap(fig1, gray(256));
         caxis([0,1])
+
         image(img);
         hold on;
+        
+        % project the tags, will be stored in the
+        % tags array
+        tags = project_tags(K, tagSize, tags);
+        
         drawTags(tags);
-
-        tagSource.debug_plot(fig2, fig3, fig4, fig5, img);
-        
         drawnow;        
-        
+
         if record
             M = [ M getframe(fig1) ];
         end
@@ -97,7 +87,7 @@ function drawTags(tags)
     end
 end
 
-% Draws a tag (the corner points, in column vector form)
+% Draws a (projected!) tag (the corner points, in column vector form)
 function drawTag(tag)
     if max(size(tag)) < 1
         return

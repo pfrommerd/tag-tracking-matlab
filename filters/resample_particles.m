@@ -1,7 +1,6 @@
 function [ nx, nw ] = resample_particles(n, x, w)
     %RESAMPLE_PARTICLES Resamples n particles from 
     % the previous particles x with weights w
-    w = w ./ sum(w);
     L = cumsum(w);
 
     nx = zeros([size(x, 1) n]);
