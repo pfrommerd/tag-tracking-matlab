@@ -35,6 +35,7 @@ classdef AprilTrack < TagSource
         end
         
         function addMotionModel(this, mm)
+            mm.setTagParams(this.params);
             this.motionModels{length(this.motionModels) + 1} = mm;
         end
         
@@ -49,8 +50,9 @@ classdef AprilTrack < TagSource
             tags = {};
             for i=1:length(this.motionModels)
                 mm = this.motionModels{i};
-                tags = [tags mm.process(this.params, img)];
+                tags = [tags mm.process(img)];
             end
+            %tags = detector_tags;
         end
         
         function tagsDetected(this, tags, img)

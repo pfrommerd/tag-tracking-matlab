@@ -6,6 +6,7 @@ classdef MotionModel < handle
         particles
         
         params
+        tagParams
         
         % Will transform a tag state by a particle
         transform
@@ -40,12 +41,17 @@ classdef MotionModel < handle
             obj.tagWeights = [];
         end
 
+        function setTagParams(this, tagParams)
+            this.tagParams = tagParams;
+        end
+        
         % Will set all the particles to a specific x
         function setParticles(this, x)
             this.particles = repmat(x, 1, this.params.num_particles);
         end
         
         function addTag(this, tag)
+            tag.refPatch = [];
             this.modelledTags{length(this.modelledTags) + 1} = tag;
             this.tagWeights = [this.tagWeights 0];
         end
@@ -77,7 +83,14 @@ classdef MotionModel < handle
             end
         end
         
-        function tags = process(this, params, img)
+        function debug(this, fig1)
+            set(0, 'CurrentFigure', fig1)
+            clf(fig1);
+            p = this.modelledTags{1}.refPatch;
+            imshow(p);
+        end
+        
+        function tags = process(this, img)
             % Resample
             [this.particles, this.weights] = ...
                 resample_particles(size(this.particles, 2), ...
@@ -90,7 +103,7 @@ classdef MotionModel < handle
                                     this.params.k, this.params.alpha);
             
             % Measure the new particles
-            Z = this.measureParticles(params, this.particles, img);
+            Z = this.measureParticles(this.particles, img);
             % Convert the measurements to weights
             W = this.convertToWeights(Z);
             
@@ -120,14 +133,15 @@ classdef MotionModel < handle
         end
         
         % Utilities for measuring particles
-        function Z = measureParticles(this, params, X, img)
+        function Z = measureParticles(this, X, img)
             Z = zeros([1 size(X, 2)]);
             
             % Find all the tags which have a positive weight
             tags = {};
             weights = [];
             for i=1:length(this.modelledTags)
-                if this.tagWeights(i) > 0
+                if this.tagWeights(i) > 0 ...
+                        && length(this.modelledTags{i}.refPatch) > 0
                     tags{length(tags) + 1} = this.modelledTags{i};
                     weights = [ weights this.tagWeights(i) ];
                 end
@@ -148,8 +162,10 @@ classdef MotionModel < handle
                     w = weights(i);
 
                     % Measure the error
-                    p = extract_patch(params.K, params.patchSize, params.coords, ...
-                                            img, this.transform(t.state, x));
+                    p = extract_patch(this.tagParams.K, ...
+                                    this.tagParams.patchSize, ...
+                                    this.tagParams.coords, ...
+                                    img, this.transform(t.state, x));
                                     
                     err = measure_patch_error(p, t.refPatch);
                     %imshow(p)

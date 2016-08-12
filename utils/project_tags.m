@@ -6,9 +6,8 @@ function tags = project_tags(K, tagSize, tags) % color is optional
 
     for i=1:length(tags)
         x = tags{i}.state;
-        
-        R = quat_to_rotm(x(4:7, i));
-        T = x(1:3, i);
+        R = quat_to_rotm(x(4:7));
+        T = x(1:3);
         H = K * [R(:, 1:2) T];
 
         corners = homography_project(H, X)';
