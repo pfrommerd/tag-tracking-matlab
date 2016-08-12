@@ -58,8 +58,8 @@ function [ M ] = algorithm(K, images, record)
     %}
     
     mmParams(1).num_particles = 2000;
-    mmParams(1).process_noise = [0.03 0.03 0.03 ...
-                                 0.0 0.0 0.0 ...
+    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+                                 0.01 0.01 0.01 ...
                                  0 0 0 ...
                                  0 0 0];
     mmParams(1).k = 1;
@@ -74,7 +74,7 @@ function [ M ] = algorithm(K, images, record)
     t(1).state = [0.9259; 0.3023; 3.4896; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0];
     
     model.addTag(t);
-    model.setTagWeight(0, 1);
+    model.setTagWeight(23, 1);
     
     tagSource.addMotionModel(model);
     
@@ -106,7 +106,7 @@ function [ M ] = algorithm(K, images, record)
         drawTags(tags);
         
         set(0, 'CurrentFigure', fig2);
-        model.debug(fig2);
+        model.debug(fig2, fig3);
         
         drawnow;        
 

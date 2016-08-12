@@ -3,6 +3,7 @@ classdef MotionModel < handle
     
     properties
         weights
+        measurements
         particles
         
         params
@@ -83,11 +84,31 @@ classdef MotionModel < handle
             end
         end
         
-        function debug(this, fig1)
+        function debug(this, fig1, fig2)
             set(0, 'CurrentFigure', fig1)
             clf(fig1);
             p = this.modelledTags{1}.refPatch;
             imshow(p);
+            
+            set(0, 'CurrentFigure', fig2)
+            clf(fig2);
+            g_x = linspace(-1, 1, 3);
+            g_y = linspace(-1, 1, 3);
+            g_z = linspace(0, 5, 3);
+            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
+            s_x = s_x(:);
+            s_y = s_y(:);
+            s_z = s_z(:);
+            
+            gen_particles = [ this.particles(1:3, :) [s_x s_y s_z]' ];
+            
+            %gen_w = [ this.weights ];
+            gen_m = [ this.convertToWeights(this.measurements) ...
+                        ones([1, size(s_x, 1)])];
+
+            colormap('parula');
+            scatter3(gen_particles(1, :), gen_particles(2, :), ...
+                     gen_particles(3, :), 5, -gen_m);
         end
         
         function tags = process(this, img)
@@ -106,7 +127,7 @@ classdef MotionModel < handle
             Z = this.measureParticles(this.particles, img);
             % Convert the measurements to weights
             W = this.convertToWeights(Z);
-            
+            this.measurements = W;
             % Update the old weights
             % using the formula w' = w * p(x'|x)/q(x'|x,y)
             % where q(x') = p(x') * 1/(k + alpha*w)
@@ -168,9 +189,6 @@ classdef MotionModel < handle
                                     img, this.transform(t.state, x));
                                     
                     err = measure_patch_error(p, t.refPatch);
-                    %imshow(p)
-                    %drawnow;
-                    %pause(1)
                     z = z + w * err;
                 end
                 Z(n) = z;
