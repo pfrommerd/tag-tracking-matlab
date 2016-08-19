@@ -55,9 +55,28 @@ function [ M ] = algorithm(K, images, record)
         x(1:3) = -T_t;
         x(4:7) = rotm_to_quat(R_t);
     end
-    %}
+
+
+    % TODO: Not yet working
+    function state = invtransform2(transState, x)
+        C = [[quat_to_rotm(transState(4:7)') ...
+              [transState(1); transState(2); transState(3)]]; [0 0 0 1]];
+        
+        R = [[quat_to_rotm(x(4:7)') [0; 0; 0]]; [0 0 0 1]];
+        T = [1 0 0 -x(1); 0 1 0 -x(2); 0 0 1 -x(3); 0 0 0 1];
+        
+        C = inv(R) * inv(T) * C;
+        
+        R_t = C(1:3, 1:3);
+        T_t = C(1:3, 4);
+        
+        state = zeros(13, 1);
+        state(1:3) = -T_t;
+        state(4:7) = rotm_to_quat(R_t);
+    end
     
-    mmParams(1).num_particles = 2000;
+    mmParams(1).auto_add_tags = false;
+    mmParams(1).num_particles = 1000;
     mmParams(1).process_noise = [0.01 0.01 0.01 ...
                                  0.01 0.01 0.01 ...
                                  0 0 0 ...
@@ -67,14 +86,16 @@ function [ M ] = algorithm(K, images, record)
     mmParams(1).lambda = 8;
     
     
-    model = MotionModel(mmParams, @transform, @invtransform);
+    model = MotionModel(mmParams, @transform, @invtransform, ...
+                        @invtransform2);
     % Add the tags
+    %%{
     t(1).id = 23;
     t(1).color = 'r';
     t(1).state = [0.9259; 0.3023; 3.4896; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0];
     
-    model.addTag(t);
-    model.setTagWeight(23, 1);
+    model.addTag(t, 1);
+    %}
     
     tagSource.addMotionModel(model);
     

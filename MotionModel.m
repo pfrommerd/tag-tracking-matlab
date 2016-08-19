@@ -2,6 +2,8 @@ classdef MotionModel < handle
     %MOTIONMODEL 
     
     properties
+        best_particle
+        
         weights
         measurements
         particles
@@ -14,6 +16,9 @@ classdef MotionModel < handle
         % Will take a modelled tag state, a transformed state
         % and give a particle
         invtransform
+        % Will take a transformed state and a particle and give
+        % a modelled tag state
+        invtransform2
         
         % All the tags incorporated
         % in this motion model
@@ -27,9 +32,10 @@ classdef MotionModel < handle
     end
     
     methods
-        function obj = MotionModel(parameters, transform, invtransform)
+        function obj = MotionModel(parameters, transform, invtransform, invtransform2)
             obj.transform = transform;
             obj.invtransform = invtransform;
+            obj.invtransform2 = invtransform2;
             
             obj.params = parameters;
             obj.weights = (1/parameters.num_particles) * ...
@@ -37,6 +43,7 @@ classdef MotionModel < handle
                         
             obj.particles = zeros([13 parameters.num_particles]);
             obj.particles(4, :) = ones([1 parameters.num_particles]);
+            obj.best_particle = [0;0;0;1;0;0;0; 0;0;0; 0;0;0];
             
             obj.modelledTags = {};
             obj.tagWeights = [];
@@ -49,12 +56,13 @@ classdef MotionModel < handle
         % Will set all the particles to a specific x
         function setParticles(this, x)
             this.particles = repmat(x, 1, this.params.num_particles);
+            this.best_particle = x;
         end
         
-        function addTag(this, tag)
+        function addTag(this, tag, weight)
             tag.refPatch = [];
             this.modelledTags{length(this.modelledTags) + 1} = tag;
-            this.tagWeights = [this.tagWeights 0];
+            this.tagWeights = [this.tagWeights weight];
         end
         
         function setTagWeight(this, id, weight)
@@ -67,20 +75,33 @@ classdef MotionModel < handle
             % Could not find the tag
         end
         
-        function tagsDetected(this, detectedTagMap)
-            for i=1:length(this.modelledTags)
-                id = this.modelledTags{i}.id;
-                if detectedTagMap.isKey(id)
-                    % The transformed tag
-                    transTag = detectedTagMap(id);
-                    tag = this.modelledTags{i};
-                    
-                    % Reset the particles
-                    this.setParticles(this.invtransform(tag.state, transTag.state));
-                    
-                    % Update the reference patch
-                    this.modelledTags{i}.refPatch = transTag.refPatch;
+        function tagsDetected(this, detectedTags)
+            for n=1:length(detectedTags)
+                transTag = detectedTags{n};
+                
+                foundTag = false;
+                for i=1:length(this.modelledTags)
+                    id = this.modelledTags{i}.id;
+                    if transTag.id == id
+                        tag = this.modelledTags{i};
+                        % Reset the particles
+                        this.setParticles(this.invtransform(tag.state, transTag.state));
+                        % Update the reference patch
+                        this.modelledTags{i}.refPatch = transTag.refPatch;
+                        this.tagWeights(i) = 1;
+                        
+                        foundTag = true;
+                        break;
+                    end
                 end
+                
+                if ~foundTag && this.params.auto_add_tags
+                    tag(1).id = transTag.id;
+                    tag(1).color = 'r';
+                    tag(1).state = this.invtransform2(transTag.state, this.best_particle);
+                    this.addTag(tag, 1);
+                end
+                
             end
         end
         
@@ -144,8 +165,33 @@ classdef MotionModel < handle
             % Pick the particle with the highest weight
             [z, i] = max(this.weights);
             x = this.particles(:, i);
-            tags = transformTags(this.modelledTags, x, this.transform);
+            
+            % Measure which tags we should get rid of
+            this.updateTagWeights(x, img);
+
+            this.modelledTags
+            tags = transformTags(this.modelledTags, this.tagWeights, x, this.transform);
             %tags{1}.state
+        end
+        
+        function updateTagWeights(this, x, img)
+            for i=1:size(this.modelledTags)
+                t = this.modelledTags{i};
+                w = this.tagWeights(i);
+                
+                if w > 0
+                    % Measure the error
+                    p = extract_patch(this.tagParams.K, ...
+                                    this.tagParams.patchSize, ...
+                                    this.tagParams.coords, ...
+                                    img, this.transform(t.state, x));
+
+                    err = measure_patch_error(p, t.refPatch);
+                    if err > 0.5
+                        this.tagWeights(i) = 0;
+                    end
+                end
+            end            
         end
         
         % Converts measurements to weights
@@ -198,13 +244,18 @@ classdef MotionModel < handle
 end
 
 % The simplest model: individual tag-tracking
-function tags = transformTags(modelledTags, x, transform)
-    tags = cell(1, length(modelledTags));
+function tags = transformTags(modelledTags, tagWeights, x, transform)
+    tags = {};
     
+    c = 1;
     for i=1:length(modelledTags)
-        tags{i} = modelledTags{i};
+        if tagWeights(i) <= 0
+            continue;
+        end
+        tags{c} = modelledTags{i};
         % Adjust the state vector
-        tags{i}.state = transform(tags{i}.state, x);
+        tags{c}.state = transform(tags{c}.state, x);
+        c = c + 1;
     end
 end
 

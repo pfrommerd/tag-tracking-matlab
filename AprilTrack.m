@@ -58,19 +58,19 @@ classdef AprilTrack < TagSource
         function tagsDetected(this, tags, img)
             % Create a bunch of reference patches
             % A map from tagID -> tag
-            detectedTagsMap = containers.Map('KeyType', 'int64', 'ValueType', 'any');
+            detectedTags = {};
             for i=1:length(tags)
                 t = tags{i};
                 p = extract_patch(this.params.K, this.params.patchSize, ...
                                     this.params.coords, img, t.state);
                 t = tags{i};
                 t.refPatch = p;
-                detectedTagsMap(t.id) = t;
+                detectedTags{i} = t;
             end
             
             for i=1:length(this.motionModels)
                 model = this.motionModels{i};
-                model.tagsDetected(detectedTagsMap);
+                model.tagsDetected(detectedTags);
             end
         end
     end
