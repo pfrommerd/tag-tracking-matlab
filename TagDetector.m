@@ -6,8 +6,8 @@ classdef TagDetector < TagSource
     end
     
     methods
-        function detector = TagDetector(K, tagSize)
-            detector.tagSize = tagSize;
+        function detector = TagDetector(K)
+            detector.tagSize = [0.1635 0.1635];
             detector.K = K;
             params = [K(1, 1) K(2, 2) ...
                       K(1, 3) K(2, 3)];            
@@ -24,6 +24,7 @@ classdef TagDetector < TagSource
 
                 corners = r.corners';
                 
+                %{
                 tagSize = this.tagSize/2;
                 pin = [-tagSize(1), -tagSize(2); ...
                         tagSize(1), -tagSize(2); ...
@@ -36,11 +37,10 @@ classdef TagDetector < TagSource
 
                 % Comute a quaternion from a rot mat
                 rot = rotm_to_quat(R)';
-                rot = [1; 0; 0; 0];
-                
-                state = [ T; rot; 0; 0; 0; 0; 0; 0];
+                %rot = [1; 0; 0; 0];
+                %}
+
                 tag.id = r.id;
-                tag.state = state;
                 tag.corners = corners;
                 tag.color = 'r';
                 tags{i} = tag;

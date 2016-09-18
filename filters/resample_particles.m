@@ -5,7 +5,8 @@ function [ nx, nw ] = resample_particles(n, x, w)
 
     nx = zeros([size(x, 1) n]);
     for i = 1:n
-        nx(:, i) = x(:, find(rand <= L,1));
+        idx = find(rand <= L, 1);
+        nx(:, i) = x(:, idx);
     end
     
     nw = 1 / n .* ones([1, n]);

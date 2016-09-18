@@ -1,11 +1,13 @@
-function tags = project_tags(K, tagSize, tags) % color is optional
-    X = [[-tagSize(1)/2; -tagSize(2)/2; 1] ...
-         [ tagSize(1)/2; -tagSize(2)/2; 1] ...
-         [ tagSize(1)/2;  tagSize(2)/2; 1] ...
-         [-tagSize(1)/2;  tagSize(2)/2; 1]];
-
+function tags = project_tags(K, tags)
     for i=1:length(tags)
         x = tags{i}.state;
+        
+        tagSize = tags{i}.size;
+        X = [[-tagSize(1)/2; -tagSize(2)/2; 1] ...
+             [ tagSize(1)/2; -tagSize(2)/2; 1] ...
+             [ tagSize(1)/2;  tagSize(2)/2; 1] ...
+             [-tagSize(1)/2;  tagSize(2)/2; 1]];
+
         R = quat_to_rotm(x(4:7));
         T = x(1:3);
         H = K * [R(:, 1:2) T];
