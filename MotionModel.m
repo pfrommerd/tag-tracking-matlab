@@ -101,8 +101,8 @@ classdef MotionModel < handle
                 rot = vrrotvec_to_quat([tagInfo(6) tagInfo(7) tagInfo(8) tagInfo(9)])';
                 tag(1).state = [pos; rot; 0; 0; 0; 0; 0; 0];
                 
-                %if tag(1).id == 23
-                if true
+                if tag(1).id == 23
+                %if true
                     this.addTag(tag, 0);
                 end
             end
@@ -156,7 +156,7 @@ classdef MotionModel < handle
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.params.process_noise, ...
                                     this.params.k, this.params.alpha);
-            
+                                
             % Measure the new particles
             % First update the patches
             this.updatePatches(detectedTagMap, img);
@@ -188,7 +188,6 @@ classdef MotionModel < handle
             % Pick the particle with the highest weight
             [z, i] = max(this.weights);
             x = this.particles(:, i);
-            
             % Measure which tags we should get rid of
             this.updateTagWeights(x, img);
 
@@ -197,6 +196,7 @@ classdef MotionModel < handle
         
         % Utilities for measuring particles
         function Z = measureParticles(this, X, img, detectedTagMap)
+            keys(detectedTagMap)
             Z = zeros([1 size(X, 2)]);
             
             % Find all the tags which have a positive weight
@@ -209,7 +209,6 @@ classdef MotionModel < handle
                     weights = [ weights this.tagWeights(i) ];
                 end
             end
-            weights
             % Normalize the weights
             weights = weights ./ sum(weights);
             
@@ -228,8 +227,14 @@ classdef MotionModel < handle
                                     this.tagParams.patchSize, ...
                                     this.tagParams.coords, ...
                                     img, t, this.transform(t.state, x));
-                     
+                    
                     err = measure_patch_error(p, t.refPatch);
+                    %{
+                    pause(2);
+                    figure(4);
+                    imshow(p);
+                    err
+                    %}          
                     z = z + w * err;
 
                     if detectedTagMap.isKey(t.id)
@@ -238,9 +243,12 @@ classdef MotionModel < handle
                         projTag = projTags{1};
                         
                         corners_diff = (projTag.corners - detectedTagMap(t.id).corners);
+                        %corners_diff
+                        corner_err = this.params.rho * sum(sum(corners_diff .* corners_diff)); 
                         
-                        z = z + sum(sum(corners_diff .* corners_diff));
+                        z = z + w * corner_err
                     end
+                    %z
                 end
                 Z(n) = z;
             end
@@ -273,15 +281,16 @@ classdef MotionModel < handle
             set(0, 'CurrentFigure', fig1)
             clf(fig1);
             if length(this.modelledTags) > 0
-                p = this.modelledTags{32}.refPatch;
+                %p = this.modelledTags{32}.refPatch;
+                p = this.modelledTags{1}.refPatch;
                 imshow(p);
             end
             
-            set(0, 'CurrentFigure', fig2)
+            set(0, 'CurrentFigure', fig2);
             clf(fig2);
             g_x = linspace(-1, 1, 3);
             g_y = linspace(-1, 1, 3);
-            g_z = linspace(0, 5, 3);
+            g_z = linspace(-1, 1, 3);
             [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
             s_x = s_x(:);
             s_y = s_y(:);
@@ -289,12 +298,19 @@ classdef MotionModel < handle
             
             gen_particles = [ this.particles(1:3, :) [s_x s_y s_z]' ];
             
-            gen_m = [ convertToWeights(this.params, this.measurements) ...
-                        ones([1, size(s_x, 1)])];
+            gen_m = [ this.weights ...
+                      zeros([1, size(s_x, 1)])];
 
             colormap('parula');
+            caxis auto;
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_particles(3, :), 5, -gen_m);
+                     gen_particles(3, :), 5, gen_m);
+                 
+            set(0, 'CurrentFigure', fig3);
+            clf(fig3);
+            colormap('parula');
+            scatter3(gen_particles(1, :), gen_particles(2, :), ...
+                     gen_m, 5, gen_m);
         end        
     end
 end

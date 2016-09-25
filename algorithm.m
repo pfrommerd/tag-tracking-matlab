@@ -81,13 +81,23 @@ function [ M ] = algorithm(K, images, record)
     mmParams(1).err_discard_threshold = 0.99;
     mmParams(1).err_dec_factor = 0.5;
     mmParams(1).num_particles = 2000;
-    mmParams(1).process_noise = [0.05 0.05 0.05 ...
-                                 0.01 0.01 0.01 ...
+    mmParams(1).process_noise = [0.03 0.03 0.03 ...
+                                 0.03 0.03 0.03 ...
                                  0 0 0 ...
                                  0 0 0];
+    % Weight of the tag corner error
+    % error = rho * sqr(corner error)
+    mmParams(1).rho = 1e-9;
+    
+    % noise = 1 / (k + alpha * w)
+    % Allows for particles of higher/lower weight to have
+    % more noise
     mmParams(1).k = 1;
     mmParams(1).alpha = 0;
-    mmParams(1).lambda = 11;
+    
+    % For measurement error --> weight conversion
+    % where weight = e^(-lambda * measurement)
+    mmParams(1).lambda = 30;
         
     
     model = MotionModel(mmParams, @ego_transform, @ego_invtransform, ...
@@ -96,7 +106,7 @@ function [ M ] = algorithm(K, images, record)
     model.loadTags('../tags_seq1.txt');
     
     initial_pos = [1.1029; 0.2798; -0.3398;  0.499; 0.499; -0.501; 0.501; 0; 0; 0; 0; 0; 0];
-    initial_random = [[0.1; 0.1; 0.1];  [0.01; 0.01; 0.01]; [0; 0; 0]; [0; 0; 0]];
+    initial_random = [[0.05; 0.05; 0.05];  [0.01; 0.01; 0.01]; [0; 0; 0]; [0; 0; 0]];
     
     model.initializeParticlesRandom(initial_pos, initial_random);
 
