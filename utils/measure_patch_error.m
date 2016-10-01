@@ -3,14 +3,13 @@ function [ err ] = measure_patch_error(patchA, patchB)
         err = 1;
         return;
     else
-        a = int16(patchA);
-        b = int16(patchB);
-
-        err = abs(corr2(a, b));
-        err = 1 - err;
-        if err < 0 || isnan(err) % Some crazy value, like -Inf
-            err = 0;
-        end
-
+        a = patchA(:);
+        b = patchB(:);
+        
+        diff = double(a - b) / 255;
+        
+        err = sum(diff.^2) / length(diff);
+        
+        %err = 1 - err * err;
 end
 

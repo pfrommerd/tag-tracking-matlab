@@ -49,11 +49,15 @@ classdef AprilTrack < TagSource
                 detectedTagMap(t.id) = t;
             end
             
-            
             tags = {};
             for i=1:length(this.motionModels)
                 mm = this.motionModels{i};
                 tags = [tags mm.process(img, detectedTagMap)];
+            end
+        end
+        function debug(this, fig1, fig2, fig3)
+            if length(this.motionModels) > 0
+                this.motionModels{1}.debug(fig1, fig2, fig3);
             end
         end
     end

@@ -24,9 +24,8 @@ classdef MotionModel < handle
         % This also stores the reference Patches for each tag
         modelledTags
 
-        % A 1xn matrix storing how much each tag should be weighted
-        % into the error
-        tagWeights
+        % A 1xn matrix storing which tags are visible
+        visibleTags
     end
     
     methods
@@ -43,7 +42,7 @@ classdef MotionModel < handle
             obj.particles(4, :) = ones([1 parameters.num_particles]);
             
             obj.modelledTags = {};
-            obj.tagWeights = [];
+            obj.visibleTags = [];
         end
 
         function setTagParams(this, tagParams)
@@ -55,8 +54,8 @@ classdef MotionModel < handle
             this.particles = repmat(x, 1, this.params.num_particles);
         end
         
+        % Draw initial particles from a distribution
         function initializeParticlesRandom(this, mu, sigma)
-
             for i=1:size(this.particles, 2)
                 x = mu;
                 
@@ -70,17 +69,16 @@ classdef MotionModel < handle
             end
         end
         
-        
         function addTag(this, tag, weight)
             tag.refPatch = [];
             this.modelledTags{length(this.modelledTags) + 1} = tag;
-            this.tagWeights = [this.tagWeights weight];
+            this.visibleTags = [this.visibleTags weight];
         end
         
-        function setTagWeight(this, id, weight)
+        function setTagVisible(this, id, visible)
             for i=1:length(this.modelledTags)
                 if this.modelledTags{i}.id == id
-                    this.tagWeights(i) = weight;
+                    this.visibleTags(i) = visible;
                     return
                 end
             end
@@ -101,8 +99,8 @@ classdef MotionModel < handle
                 rot = vrrotvec_to_quat([tagInfo(6) tagInfo(7) tagInfo(8) tagInfo(9)])';
                 tag(1).state = [pos; rot; 0; 0; 0; 0; 0; 0];
                 
-                if tag(1).id == 23
-                %if true
+                %if tag(1).id == 23
+                if true
                     this.addTag(tag, 0);
                 end
             end
@@ -139,7 +137,7 @@ classdef MotionModel < handle
                                          this.tagParams.coords, ...
                                          img, tag, transState);
                     
-                    this.tagWeights(i) = 1;
+                    this.visibleTags(i) = 1;
                 end
             end
         end
@@ -189,28 +187,25 @@ classdef MotionModel < handle
             [z, i] = max(this.weights);
             x = this.particles(:, i);
             % Measure which tags we should get rid of
-            this.updateTagWeights(x, img);
+            this.updateVisibleTags(x, img);
 
-            tags = transformTags(this.modelledTags, this.tagWeights, x, this.transform);
+            tags = transformTags(this.modelledTags, this.visibleTags, x, this.transform);
         end
         
         % Utilities for measuring particles
         function Z = measureParticles(this, X, img, detectedTagMap)
-            keys(detectedTagMap)
             Z = zeros([1 size(X, 2)]);
             
             % Find all the tags which have a positive weight
             tags = {};
-            weights = [];
             for i=1:length(this.modelledTags)
-                if this.tagWeights(i) > 0 ...
+                if this.visibleTags(i) > 0 ...
                         && length(this.modelledTags{i}.refPatch) > 0
                     tags{length(tags) + 1} = this.modelledTags{i};
-                    weights = [ weights this.tagWeights(i) ];
                 end
-            end
-            % Normalize the weights
-            weights = weights ./ sum(weights);
+            end            
+            %keys(detectedTagMap)
+
             
             % For every particle, go through each tag
             % and average the error
@@ -220,7 +215,6 @@ classdef MotionModel < handle
                 z = 0;
                 for i=1:size(tags)
                     t = tags{i};
-                    w = weights(i);
                     
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
@@ -235,30 +229,28 @@ classdef MotionModel < handle
                     imshow(p);
                     err
                     %}          
-                    z = z + w * err;
 
                     if detectedTagMap.isKey(t.id)
-                        % Calculate tag error
+                        % Calculate corner error
                         projTags = project_tags(this.tagParams.K, {t});
                         projTag = projTags{1};
                         
                         corners_diff = (projTag.corners - detectedTagMap(t.id).corners);
-                        %corners_diff
                         corner_err = this.params.rho * sum(sum(corners_diff .* corners_diff)); 
                         
-                        z = z + w * corner_err
+                        err = err + corner_err;
                     end
-                    %z
+                    z = z + err;
                 end
                 Z(n) = z;
             end
         end
         
                 
-        function updateTagWeights(this, x, img)
+        function updateVisibleTags(this, x, img)
             for i=1:length(this.modelledTags)
                 t = this.modelledTags{i};
-                w = this.tagWeights(i);
+                w = this.visibleTags(i);
                 if w > 0
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
@@ -268,9 +260,7 @@ classdef MotionModel < handle
 
                     err = measure_patch_error(p, t.refPatch);
                     if err > this.params.err_discard_threshold
-                        this.tagWeights(i) = 0;
-                    else
-                        %this.tagWeights(i) = this.tagWeights(i) * exp(err - this.params.err_dec_factor);
+                        this.visibleTags(i) = 0;
                     end
                 end
             end            
@@ -280,10 +270,22 @@ classdef MotionModel < handle
         function debug(this, fig1, fig2, fig3)
             set(0, 'CurrentFigure', fig1)
             clf(fig1);
+            
+            colormap(gray(255));
+            
+            % Draw the tags on figure1
             if length(this.modelledTags) > 0
                 %p = this.modelledTags{32}.refPatch;
-                p = this.modelledTags{1}.refPatch;
-                imshow(p);
+                %p = this.modelledTags{1}.refPatch;
+                n = round(sqrt(length(this.modelledTags))) + 1;
+
+                for i=1:length(this.modelledTags)
+                    t = this.modelledTags{i};
+                    if length(t.refPatch) > 0
+                        h = subplot(n, n, i);
+                        image(t.refPatch, 'Parent', h);
+                    end
+                end
             end
             
             set(0, 'CurrentFigure', fig2);
@@ -320,12 +322,12 @@ function W = convertToWeights(params, Z)
     W = exp(-params.lambda * Z);
 end
 
-function tags = transformTags(modelledTags, tagWeights, x, transform)
+function tags = transformTags(modelledTags, visibleTags, x, transform)
     tags = {};
     
     c = 1;
     for i=1:length(modelledTags)
-        if tagWeights(i) <= 0
+        if visibleTags(i) <= 0
             continue;
         end
         tags{c} = modelledTags{i};
