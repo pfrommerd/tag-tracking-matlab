@@ -1,7 +1,8 @@
-function [  ] = run(config)
+function [  ] = run(config, shouldRecord)
     tracker = [];
     frames = [];
-
+    M = [];
+    
     switch config
         case 'seq1'
             [tracker, frames] = setup_seq1();
@@ -10,8 +11,12 @@ function [  ] = run(config)
         otherwise
             return;
     end
-
-    algorithm(tracker, frames, false);
+    
+    if (exist('shouldRecord', 'var') && shouldRecord)
+        M = algorithm(tracker, frames, true);
+    else
+        algorithm(tracker, frames, false);
+    end
 end
 
 function [tracker, frames] = setup_seq1()
@@ -86,8 +91,8 @@ function [tracker, frames] = setup_test1()
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
-    mmParams(1).num_particles = 2000;
-    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+    mmParams(1).num_particles = 4000;
+    mmParams(1).process_noise = [0.02 0.02 0.02 ...
                                  0.05 0.05 0.05 ...
                                  0 0 0 ...
                                  0 0 0];

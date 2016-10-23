@@ -230,6 +230,7 @@ classdef MotionModel < handle
             printf('; Took: %f\n', toc()); fflush(stdout);
 
             % ---------------------  Resample -----------------------
+            printf('*** Resampling ***\n'); fflush(stdout);
             printf('--> Resampling'); fflush(stdout);
             tic();
 

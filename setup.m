@@ -1,4 +1,5 @@
 pkg load image
+pkg load video
 
 addpath 'apriltag'
 addpath 'utils'
