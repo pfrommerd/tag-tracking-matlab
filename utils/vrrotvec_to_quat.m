@@ -4,7 +4,7 @@ function Q = vrrotvec_to_quat(OMEGA)
 %
 % converts rotation around phi to quaternion
 %% ------ input -------
-% OMEGA  n x 4 array of rotation vectors
+% OMEGA  n x 4 array of rotation vectors [rx, ry, rz, phi]
 %% ------ output ------
 % Q      n x 4 array of quaternions [w, x, y, z]
 %

@@ -15,29 +15,26 @@ function [ M ] = algorithm(tracker, images, record)
     fflush(stdout);
     
     while images.hasImage()
-        disp('------------------------------');        
-        disp('Reading image');
+        printf('------------------------------\n');      
+        printf(':: Reading image\n'); fflush(stdout);
         tic();
-        fflush(stdout);
         img = images.readImage();
-        disp('-- '), disp(toc());
-        disp('Processing image');
-        fflush(stdout);
-        
+        printf('// Took %f\n', toc());
+	
+        disp(':: Processing image'); fflush(stdout);
         tags = tracker.process(img);
                 
-        disp('-- '), disp(toc());
-        disp('Clearing figures');
-        fflush(stdout);
+        printf(':: Clearing figures\n'); fflush(stdout);
+        tic();
 
         clf(fig1);
         clf(fig2);
         clf(fig3);
         clf(fig4);
         
-        disp('-- '), disp(toc());
-        disp('Displaying figures');
-        fflush(stdout);
+        printf('// Took %f\n', toc());
+        printf(':: Displaying result\n'); fflush(stdout);
+        tic();
 
         figure(1);
         colormap(gray(255));
@@ -52,17 +49,17 @@ function [ M ] = algorithm(tracker, images, record)
         
         figure(2);
         
-        disp('-- '), disp(toc());
-        disp('Rendering debug output');
-        fflush(stdout);
-        
+        printf('// Took %f\n', toc());
+        printf(':: Displaying debug stuff\n'); fflush(stdout);
+        tic();
+
         tracker.debug(fig2, fig3, fig4);
         figure(1);
 
-        disp('-- '), disp(toc());
-        fflush(stdout);
+        printf('// Took %f\n', toc()); fflush(stdout);
 
         if record
+            tic();
             disp('Getting frame');
             fflush(stdout);
 
@@ -91,11 +88,4 @@ function drawTag(tag)
     y = points(2, :);
     
     plot([x x(1)], [y y(1)], '.-', 'Color', color);
-    
-    %{
-    plot(x(1), y(1), 'x', 'Color', color);
-    plot(x(2), y(2), 'o', 'Color', color);
-    plot(x(3), y(3), '*', 'Color', color);
-    plot(x(4:end), y(4:end), 's', 'Color', color);
-    %}
 end

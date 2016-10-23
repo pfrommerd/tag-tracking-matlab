@@ -108,59 +108,89 @@ classdef MotionModel < handle
         function updatePatches(this, detectedTagMap, img) 
             for i=1:length(this.modelledTags)
                 id = this.modelledTags{i}.id;
-                if length(detectedTagMap.keys) > id + 1 && detectedTagMap.keys{id + 1} > 0
-                        transTag = detectedTagMap.values{
-                                           detectedTagMap.keys{id + 1}};
-                        tag = this.modelledTags{i};
+                if length(detectedTagMap.keys) >= id + 1 && detectedTagMap.keys{id ...
+                                        + 1} > 0
+                    transTag = detectedTagMap.values{
+                        detectedTagMap.keys{id + 1}};
 
-                        % Update the reference patch
-                        % First compute the state from the corners
-                        tagSize = tag.size/2;
-                        pin = [-tagSize(1), -tagSize(2); ...
-                               tagSize(1), -tagSize(2); ...
-                               tagSize(1),  tagSize(2);...
-                               -tagSize(1),  tagSize(2)];
 
-                        H = homography_solve(pin, transTag.corners);
-                        % Extract the rotation and translation
-                        [R, T] = homography_extract_pose(this.tagParams.K, H);
+                    % Update the corners
+                    this.modelledTags{i}.refPatchCorners = transTag.corners;
 
-                        % Comute a quaternion from a rot mat
-                        transState = [T; rotm_to_quat(R)'; 0; 0; 0; 0; 0; 0];
+                    
+                    % Update the reference patch
 
-                        this.modelledTags{i}.refPatchCorners = transTag.corners;
+                    tag = this.modelledTags{i};
 
-                        % Extract the patch
-                        this.modelledTags{i}.refPatch = ... 
-                            extract_patch(this.tagParams.K, ...
-                                          this.tagParams.patchSize, ...
-                                          this.tagParams.coords, ...
-                                          img, tag, transState);
-                        
-                        this.visibleTags(i) = 1;
+                    % First compute the state from the corners
+                    tagSize = tag.size/2;
+                    pin = [-tagSize(1), -tagSize(2); ...
+                           tagSize(1), -tagSize(2); ...
+                           tagSize(1),  tagSize(2);...
+                           -tagSize(1),  tagSize(2)];
+
+                    H = homography_solve(pin, transTag.corners);
+                    % Extract the rotation and translation
+                    [R, T] = homography_extract_pose(this.tagParams.K, H);
+
+                    % Comute a quaternion from a rot mat
+                    % and set that to the tag's state (so that we get a
+                    % transformed tag to stuff into extract_patch)
+                    tag.state = [T; rotm_to_quat(R)'; 0; 0; 0; 0; 0; 0];
+
+
+                    % Extract the patch
+                    this.modelledTags{i}.refPatch = ... 
+                        extract_patch(this.tagParams.K, ...
+                                      this.tagParams.patchSize, ...
+                                      this.tagParams.coords, ...
+                                      img, tag);
+                    
+                    this.visibleTags(i) = 1;
                 end
             end
         end
 
         
         function tags = process(this, img, detectedTagMap)
-            % Resample
-            [this.particles, this.weights] = ...
-                resample_particles(size(this.particles, 2), ...
-                                   this.particles, ...
-                                   this.weights);
+
+            % --------------------  Propagate  ---------------------------
             
+            printf('** Propagating ***\n'); fflush(stdout);            
+
             % Propagate by sampling from q
+            printf('--> Propagating'); fflush(stdout);
+            tic();
+
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.params.process_noise, ...
                                     this.params.k, this.params.alpha);
+
+            printf('; Took: %f\n', toc()); fflush(stdout);            
+
             
-            % Measure the new particles
+            % -----------------------  Measure  ----------------------------
+            printf('** Measuring ***\n'); fflush(stdout);
+
             % First update the patches
+            printf('--> Updating patches'); fflush(stdout);
+            tic();
+
             this.updatePatches(detectedTagMap, img);
             
+            printf('; Took: %f\n', toc()); fflush(stdout);            
+
+            printf('--> Measuring particles'); fflush(stdout);
+            tic();
+
             Z = this.measureParticles(this.particles, img, detectedTagMap);
             this.measurements = Z;
+            
+            printf('; Took: %f\n', toc()); fflush(stdout);            
+
+            printf('--> Transforming measurements'); fflush(stdout);
+            tic();
+            
             
             % Convert the measurements to weights
             W = this.transformMeasurements(Z);
@@ -182,14 +212,35 @@ classdef MotionModel < handle
                 weightSum = 0.0001;
             end
             this.weights = this.weights / weightSum;
+
+            printf('; Took: %f\n', toc()); fflush(stdout);            
+
+            printf('--> Selecting final particle and updating tags'); fflush(stdout);
+            tic();
             
             % Pick the particle with the highest weight
             [z, i] = max(this.weights);
             x = this.particles(:, i);
+            
+            tags = this.transformTags(x);
+            
             % Measure which tags we should get rid of
             this.updateVisibleTags(x, img);
+            
+            printf('; Took: %f\n', toc()); fflush(stdout);
 
-            tags = this.transformTags(x);
+            % ---------------------  Resample -----------------------
+            printf('--> Resampling'); fflush(stdout);
+            tic();
+
+            fflush(stdout);
+            [this.particles, this.weights] = ...
+                resample_particles(size(this.particles, 2), ...
+                                   this.particles, ...
+                                   this.weights);
+            fflush(stdout);
+
+            printf('; Took: %f\n', toc()); fflush(stdout);            
         end
         
         % Utilities for measuring particles
@@ -213,31 +264,25 @@ classdef MotionModel < handle
                 z = 0;
                 for i=1:size(tags)
                     t = tags{i};
+                    % Transform the state of the tag
+                    t.state = this.transform(t.state, x);
                     
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
                                       this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
-                                      img, t, this.transform(t.state, x));
+                                      img, t);
                     
                     err = measure_patch_error(p, t.refPatch);
-                    %{
-                    pause(2);
-                    figure(4);
-                    imshow(p);
-                    err
-                    %}          
-
                     if length(detectedTagMap.keys) >= t.id + 1 && detectedTagMap.keys{t.id + 1} > 0
                         detectedTag = detectedTagMap.values{
                                           detectedTagMap.keys{t.id + 1}};
                         % Calculate corner error
                         projTags = project_tags(this.tagParams.K, {t});
                         projTag = projTags{1};
-                        
+
                         corners_diff = (projTag.corners - detectedTag.corners);
                         corner_err = this.params.rho * sum(sum(corners_diff .* corners_diff)); 
-                        
                         err = err + corner_err;
                     end
                     z = z + err;
@@ -272,14 +317,18 @@ classdef MotionModel < handle
         function updateVisibleTags(this, x, img)
             for i=1:length(this.modelledTags)
                 t = this.modelledTags{i};
+                
                 w = this.visibleTags(i);
                 if w > 0
+                    % Transform the state
+                    t.state = this.transform(t.state, x);
+                    
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
                                       this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
-                                      img, t, this.transform(t.state, x));
-
+                                      img, t);
+                    
                     err = measure_patch_error(p, t.refPatch);
                     if err > this.params.err_discard_threshold
                         this.visibleTags(i) = 0;

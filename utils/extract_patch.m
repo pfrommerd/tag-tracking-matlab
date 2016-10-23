@@ -1,9 +1,9 @@
-function p = extract_patch(K, patchSize, coords, img, tag, transState)
+function p = extract_patch(K, patchSize, coords, img, tag)
     p = zeros(patchSize);
     
     % Create the homography
-    R = quat_to_rotm(transState(4:7));
-    T = transState(1:3);
+    R = quat_to_rotm(tag.state(4:7));
+    T = tag.state(1:3);
     H = K * [R(:, 1:2) T];
     
     % Project the coords

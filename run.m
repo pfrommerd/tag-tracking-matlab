@@ -86,9 +86,9 @@ function [tracker, frames] = setup_test1()
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
-    mmParams(1).num_particles = 10000;
-    mmParams(1).process_noise = [0.03 0.03 0.03 ...
-                                 0.01 0.01 0.01 ...
+    mmParams(1).num_particles = 2000;
+    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+                                 0.05 0.05 0.05 ...
                                  0 0 0 ...
                                  0 0 0];
     % Weight of the tag corner error
@@ -103,25 +103,37 @@ function [tracker, frames] = setup_test1()
 
     % For measurement error --> weight conversion
     % where weight = e^(-lambda * measurement)
-    mmParams(1).lambda = 10;
+    mmParams(1).lambda = 8;
 
     model = MotionModel(mmParams, @tag_transform, @tag_invtransform, ...
                         @tag_invtransform2);
 
+    model.loadTags('../tags_test1.txt');
+    
+    initial = [0.1862224; -0.0067017; 0.696942; ...
+               0.991367; -0.124779; -0.014736; 0.037472;...
+               0; 0; 0;  0; 0; 0];
+    
+    model.initializeParticlesTo(initial);
+    
     tracker.addMotionModel(model);
 end
 
 
-% The motion model stuff    
-function state = tag_transform(state, x)
-    state(1:3) = state(1:3) + x(1:3);
-    state(4:7) = x(4:7);
+% The motion model stuff
+
+% For tag-motion
+
+function transState = tag_transform(state, x)
+    transState = state;
+    transState(1:3) =  x(1:3) + state(1:3);
+    transState(4:7) = qmult(x(4:7)', state(4:7)')';
 end
 
 function x = tag_invtransform(state, transState)
     x = state;
     x(1:3) = transState(1:3) - state(1:3);
-    x(4:7) = transState(4:7);
+    x(4:7) = qmult(transState(4:7)',qinv(state)')';
 end
 
 function state = tag_invtransform2(x, transState)
@@ -130,6 +142,7 @@ function state = tag_invtransform2(x, transState)
     state(1:4) = transState(1:4);
 end
 
+% For ego-motion
 
 function transState = ego_transform(state, x)
     R = [[quat_to_rotm(x(4:7)') [0; 0; 0]]; [0 0 0 1]];
