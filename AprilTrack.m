@@ -41,18 +41,20 @@ classdef AprilTrack < TagSource
         
         function tags = process(this, img)
             detector_tags = this.detector.process(img);
+                     
+            tagMap.keys = {};
+            tagMap.values = {};
             
-            % Put the detected tags in a map
-            detectedTagMap = containers.Map('KeyType', 'int64', 'ValueType', 'any');
             for i=1:length(detector_tags)
-                t = detector_tags{i};
-                detectedTagMap(t.id) = t;
+                tag = detector_tags{i};
+                tagMap.keys{tag.id + 1} = i;
+                tagMap.values{i} = tag;
             end
             
             tags = {};
             for i=1:length(this.motionModels)
                 mm = this.motionModels{i};
-                tags = [tags mm.process(img, detectedTagMap)];
+                tags = [tags mm.process(img, tagMap)];
             end
         end
         function debug(this, fig1, fig2, fig3)

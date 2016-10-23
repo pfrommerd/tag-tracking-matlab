@@ -1,5 +1,4 @@
 classdef MotionModel < handle
-    %MOTIONMODEL 
     
     properties
         weights
@@ -36,8 +35,8 @@ classdef MotionModel < handle
             
             obj.params = parameters;
             obj.weights = (1/parameters.num_particles) * ...
-                            ones([1 parameters.num_particles]);
-                        
+                ones([1 parameters.num_particles]);
+            
             obj.particles = zeros([13 parameters.num_particles]);
             obj.particles(4, :) = ones([1 parameters.num_particles]);
             
@@ -86,17 +85,17 @@ classdef MotionModel < handle
         end
         
         function loadTags(this, file)
-            text = textread(file);
-            for i=1:size(text, 1)
-                tagInfo = text(i, :);
-                
-                tag(1).id = tagInfo(1);
+            [ids, sizes, posX, posY, posZ, rotX, rotY, rotZ, rotW] = ...
+                textread(file, '%f %f %f %f %f %f %f %f %f');
+
+            for i=1:length(ids)
+                tag(1).id = ids(i);
                 tag(1).color = 'r';
-                tag(1).size = [0.1635 0.1635];
+                tag(1).size = 0.001 * [sizes(i) sizes(i)];
                 tag(1).border = [0.02 0.02];
 
-                pos = (0.001 .* [tagInfo(3) tagInfo(4) tagInfo(5)])';
-                rot = vrrotvec_to_quat([tagInfo(6) tagInfo(7) tagInfo(8) tagInfo(9)])';
+                pos = (0.001 .* [posX(i) posY(i) posZ(i)])';
+                rot = vrrotvec_to_quat([rotX(i) rotY(i) rotZ(i) rotW(i)])';
                 tag(1).state = [pos; rot; 0; 0; 0; 0; 0; 0];
                 
                 %if tag(1).id == 23
@@ -109,35 +108,36 @@ classdef MotionModel < handle
         function updatePatches(this, detectedTagMap, img) 
             for i=1:length(this.modelledTags)
                 id = this.modelledTags{i}.id;
-                if detectedTagMap.isKey(id)
-                    transTag = detectedTagMap(id);
-                    tag = this.modelledTags{i};
+                if length(detectedTagMap.keys) > id + 1 && detectedTagMap.keys{id + 1} > 0
+                        transTag = detectedTagMap.values{
+                                           detectedTagMap.keys{id + 1}};
+                        tag = this.modelledTags{i};
 
-                    % Update the reference patch
-                    % First compute the state from the corners
-                    tagSize = tag.size/2;
-                    pin = [-tagSize(1), -tagSize(2); ...
-                            tagSize(1), -tagSize(2); ...
-                            tagSize(1),  tagSize(2);...
-                           -tagSize(1),  tagSize(2)];
+                        % Update the reference patch
+                        % First compute the state from the corners
+                        tagSize = tag.size/2;
+                        pin = [-tagSize(1), -tagSize(2); ...
+                               tagSize(1), -tagSize(2); ...
+                               tagSize(1),  tagSize(2);...
+                               -tagSize(1),  tagSize(2)];
 
-                    H = homography_solve(pin, transTag.corners);
-                    % Extract the rotation and translation
-                    [R, T] = homography_extract_pose(this.tagParams.K, H);
+                        H = homography_solve(pin, transTag.corners);
+                        % Extract the rotation and translation
+                        [R, T] = homography_extract_pose(this.tagParams.K, H);
 
-                    % Comute a quaternion from a rot mat
-                    transState = [T; rotm_to_quat(R)'; 0; 0; 0; 0; 0; 0];
+                        % Comute a quaternion from a rot mat
+                        transState = [T; rotm_to_quat(R)'; 0; 0; 0; 0; 0; 0];
 
-                    this.modelledTags{i}.refPatchCorners = transTag.corners;
+                        this.modelledTags{i}.refPatchCorners = transTag.corners;
 
-                    % Extract the patch
-                    this.modelledTags{i}.refPatch = ... 
-                        extract_patch(this.tagParams.K, ...
-                                         this.tagParams.patchSize, ...
-                                         this.tagParams.coords, ...
-                                         img, tag, transState);
-                    
-                    this.visibleTags(i) = 1;
+                        % Extract the patch
+                        this.modelledTags{i}.refPatch = ... 
+                            extract_patch(this.tagParams.K, ...
+                                          this.tagParams.patchSize, ...
+                                          this.tagParams.coords, ...
+                                          img, tag, transState);
+                        
+                        this.visibleTags(i) = 1;
                 end
             end
         end
@@ -147,14 +147,14 @@ classdef MotionModel < handle
             % Resample
             [this.particles, this.weights] = ...
                 resample_particles(size(this.particles, 2), ...
-                                    this.particles, ...
-                                    this.weights);
+                                   this.particles, ...
+                                   this.weights);
             
             % Propagate by sampling from q
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.params.process_noise, ...
                                     this.params.k, this.params.alpha);
-                                
+            
             % Measure the new particles
             % First update the patches
             this.updatePatches(detectedTagMap, img);
@@ -163,7 +163,7 @@ classdef MotionModel < handle
             this.measurements = Z;
             
             % Convert the measurements to weights
-            W = convertToWeights(this.params, Z);
+            W = this.transformMeasurements(Z);
             
             % Update the old weights
             % using the formula w' = w * p(x'|x)/q(x'|x,y)
@@ -173,7 +173,7 @@ classdef MotionModel < handle
             % and p(x')/q(x') = k + akpha * w
             
             this.weights = this.weights .* W .* ...
-                    (this.params.alpha .* this.weights + this.params.k);
+                (this.params.alpha .* this.weights + this.params.k);
             
             % Finally, normalize the weights again
             weightSum = sum(this.weights);
@@ -189,7 +189,7 @@ classdef MotionModel < handle
             % Measure which tags we should get rid of
             this.updateVisibleTags(x, img);
 
-            tags = transformTags(this.modelledTags, this.visibleTags, x, this.transform);
+            tags = this.transformTags(x);
         end
         
         % Utilities for measuring particles
@@ -204,8 +204,6 @@ classdef MotionModel < handle
                     tags{length(tags) + 1} = this.modelledTags{i};
                 end
             end            
-            %keys(detectedTagMap)
-
             
             % For every particle, go through each tag
             % and average the error
@@ -218,9 +216,9 @@ classdef MotionModel < handle
                     
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
-                                    this.tagParams.patchSize, ...
-                                    this.tagParams.coords, ...
-                                    img, t, this.transform(t.state, x));
+                                      this.tagParams.patchSize, ...
+                                      this.tagParams.coords, ...
+                                      img, t, this.transform(t.state, x));
                     
                     err = measure_patch_error(p, t.refPatch);
                     %{
@@ -230,12 +228,14 @@ classdef MotionModel < handle
                     err
                     %}          
 
-                    if detectedTagMap.isKey(t.id)
+                    if length(detectedTagMap.keys) >= t.id + 1 && detectedTagMap.keys{t.id + 1} > 0
+                        detectedTag = detectedTagMap.values{
+                                          detectedTagMap.keys{t.id + 1}};
                         % Calculate corner error
                         projTags = project_tags(this.tagParams.K, {t});
                         projTag = projTags{1};
                         
-                        corners_diff = (projTag.corners - detectedTagMap(t.id).corners);
+                        corners_diff = (projTag.corners - detectedTag.corners);
                         corner_err = this.params.rho * sum(sum(corners_diff .* corners_diff)); 
                         
                         err = err + corner_err;
@@ -246,7 +246,29 @@ classdef MotionModel < handle
             end
         end
         
-                
+
+        % Converts measurements to weights
+        function W = transformMeasurements(this, Z) 
+            W = exp(-this.params.lambda * Z);
+        end
+
+        function tags = transformTags(this, x)
+            tags = {};
+            
+            c = 1;
+            for i=1:length(this.modelledTags)
+                if this.visibleTags(i) <= 0
+                    continue;
+                end
+                tags{c} = this.modelledTags{i};
+                % Adjust the state vector
+                tags{c}.state = this.transform(tags{c}.state, x);
+                c = c + 1;
+            end
+        end
+        
+        
+        
         function updateVisibleTags(this, x, img)
             for i=1:length(this.modelledTags)
                 t = this.modelledTags{i};
@@ -254,9 +276,9 @@ classdef MotionModel < handle
                 if w > 0
                     % Measure the error
                     p = extract_patch(this.tagParams.K, ...
-                                    this.tagParams.patchSize, ...
-                                    this.tagParams.coords, ...
-                                    img, t, this.transform(t.state, x));
+                                      this.tagParams.patchSize, ...
+                                      this.tagParams.coords, ...
+                                      img, t, this.transform(t.state, x));
 
                     err = measure_patch_error(p, t.refPatch);
                     if err > this.params.err_discard_threshold
@@ -268,9 +290,7 @@ classdef MotionModel < handle
         
         
         function debug(this, fig1, fig2, fig3)
-            set(0, 'CurrentFigure', fig1)
-            clf(fig1);
-            
+            figure(fig1);
             colormap(gray(255));
             
             % Draw the tags on figure1
@@ -288,8 +308,7 @@ classdef MotionModel < handle
                 end
             end
             
-            set(0, 'CurrentFigure', fig2);
-            clf(fig2);
+            figure(fig2);
             g_x = linspace(-1, 1, 3);
             g_y = linspace(-1, 1, 3);
             g_z = linspace(-1, 1, 3);
@@ -303,36 +322,15 @@ classdef MotionModel < handle
             gen_m = [ this.weights ...
                       zeros([1, size(s_x, 1)])];
 
-            colormap('parula');
+            colormap('jet');
             caxis auto;
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_particles(3, :), 5, gen_m);
-                 
-            set(0, 'CurrentFigure', fig3);
-            clf(fig3);
-            colormap('parula');
+            
+            figure(fig3);
+            colormap('jet');
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_m, 5, gen_m);
         end        
-    end
-end
-
-% Converts measurements to weights
-function W = convertToWeights(params, Z)
-    W = exp(-params.lambda * Z);
-end
-
-function tags = transformTags(modelledTags, visibleTags, x, transform)
-    tags = {};
-    
-    c = 1;
-    for i=1:length(modelledTags)
-        if visibleTags(i) <= 0
-            continue;
-        end
-        tags{c} = modelledTags{i};
-        % Adjust the state vector
-        tags{c}.state = transform(tags{c}.state, x);
-        c = c + 1;
     end
 end

@@ -1,0 +1,4 @@
+*.o
+*.mex
+apriltag_sources.tgz
+src

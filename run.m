@@ -5,6 +5,8 @@ function [  ] = run(config)
     switch config
         case 'seq1'
             [tracker, frames] = setup_seq1();
+        case 'test1'
+            [tracker, frames] = setup_test1();
         otherwise
             return;
     end
@@ -19,6 +21,58 @@ function [tracker, frames] = setup_seq1()
     K = [568.8885   0           959.1503;
          0          784.9941    539.7587;
          0          0           1.0000];
+
+    % Setup some detector stuff
+    detector = TagDetector(K);
+    trackParams(1).K = K;
+    
+    % Patch size
+    trackParams(1).patchSize = [64 64];
+    
+    % Create the tracker
+    tracker = AprilTrack(detector, trackParams);
+
+    % Add a motion model
+    mmParams(1).err_discard_threshold = 0.9;
+    mmParams(1).num_particles = 1000;
+    mmParams(1).process_noise = [0.03 0.03 0.03 ...
+                                 0.01 0.01 0.01 ...
+                                 0 0 0 ...
+                                 0 0 0];
+    % Weight of the tag corner error
+    % error = rho * sqr(corner error)
+    mmParams(1).rho = 1e-10;
+
+    % noise = 1 / (k + alpha * w)
+    % Allows for particles of higher/lower weight to have
+    % more noise
+    mmParams(1).k = 1;
+    mmParams(1).alpha = 0;
+
+    % For measurement error --> weight conversion
+    % where weight = e^(-lambda * measurement)
+    mmParams(1).lambda = 10;
+
+    model = MotionModel(mmParams, @ego_transform, @ego_invtransform, ...
+                        @ego_invtransform2);
+    model.loadTags('../tags_seq1.txt');
+
+    initial_pos = [1.1029; 0.2798; -0.3398;  0.499; 0.499; -0.501; 0.501; 0; 0; 0; 0; 0; 0];
+    initial_random = [[0.1; 0.1; 0.1];  [0.05; 0.05; 0.05]; [0; 0; 0]; [0; 0; 0]];
+
+    model.initializeParticlesRandom(initial_pos, initial_random);
+
+    tracker.addMotionModel(model);
+end
+
+
+function [tracker, frames] = setup_test1()
+    frames = ImagesSource('../test_video');
+
+    % Image parameters
+    K = [1002.6   0           540.9;
+         0          1007.0    355.4;
+         0          0         1.0];
 
     % Setup some detector stuff
     detector = TagDetector(K);
@@ -51,17 +105,12 @@ function [tracker, frames] = setup_seq1()
     % where weight = e^(-lambda * measurement)
     mmParams(1).lambda = 10;
 
-    model = MotionModel(mmParams, @ego_transform, @ego_invtransform, ...
-                        @ego_invtransform2);
-    model.loadTags('../tags_seq1.txt');
-
-    initial_pos = [1.1029; 0.2798; -0.3398;  0.499; 0.499; -0.501; 0.501; 0; 0; 0; 0; 0; 0];
-    initial_random = [[0.1; 0.1; 0.1];  [0.05; 0.05; 0.05]; [0; 0; 0]; [0; 0; 0]];
-
-    model.initializeParticlesRandom(initial_pos, initial_random);
+    model = MotionModel(mmParams, @tag_transform, @tag_invtransform, ...
+                        @tag_invtransform2);
 
     tracker.addMotionModel(model);
 end
+
 
 % The motion model stuff    
 function state = tag_transform(state, x)

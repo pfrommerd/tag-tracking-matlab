@@ -8,15 +8,14 @@ function p = extract_patch(K, patchSize, coords, img, tag, transState)
     
     % Project the coords
     s = tag.size + tag.border;
-    
+    S = [s(1) 0 0; ...
+         0 s(2) 0; ...
+         0 0    1];
     % Modify H to scale by size first
-    H = H * [s(1) 0 0; ...
-             0 s(2) 0;
-             0 0 1];
-        
+    H = H * S;
 
     c = homography_project(H, coords);
-
+    
     x = round(c(1, :));
     y = round(c(2, :));
 
@@ -28,7 +27,6 @@ function p = extract_patch(K, patchSize, coords, img, tag, transState)
         p = [];
         return;
     end
-    
     idx = sub2ind(size(img), y, x);
     v = img(idx);
     p = reshape(v, size(p))';
