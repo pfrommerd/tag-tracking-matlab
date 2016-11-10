@@ -3,7 +3,6 @@ classdef AprilTrack < TagSource
     %   Detailed explanation goes here
     
     properties
-        detector
         % A cell array of motion models
         motionModels 
         
@@ -11,8 +10,7 @@ classdef AprilTrack < TagSource
     end
     
     methods
-        function obj = AprilTrack(detector, params)
-            obj.detector = detector;
+        function obj = AprilTrack(params)
             obj.motionModels = {};
             
             obj.params = params;
@@ -39,9 +37,7 @@ classdef AprilTrack < TagSource
             this.motionModels{length(this.motionModels) + 1} = mm;
         end
         
-        function tags = process(this, img)
-            detector_tags = this.detector.process(img);
-                     
+        function tags = process(this, img, detector_tags)
             tagMap.keys = {};
             tagMap.values = {};
             

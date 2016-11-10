@@ -3,8 +3,6 @@ function [ nx, nw ] = resample_particles(n, x, w)
     % the previous particles x with weights w
     L = cumsum(w);
         
-    fflush(stdout);
-
     nx = zeros([size(x, 1) n]);
     for i = 1:n
         idx = find(rand <= L, 1);
@@ -12,8 +10,5 @@ function [ nx, nw ] = resample_particles(n, x, w)
     end
     
     nw = 1 / n .* ones([1, n]);
-
-    sleep(1);
     
-    fflush(stdout);
 end

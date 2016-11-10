@@ -15,7 +15,7 @@ classdef TagDetector < TagSource
         end
         
         function tags = process(this, img)
-            printf('--> Detecting tags'); fflush(stdout);
+            fprintf('--> Detecting tags');
             tic();
 
             results = find_apriltags(img, this.tagSize(1), this.params);
@@ -51,7 +51,7 @@ classdef TagDetector < TagSource
                 tags{i} = tag;
             end
 
-            printf('; Took: %f\n', toc()); fflush(stdout);
+            fprintf('; Took: %f\n', toc());
         end
     end
     

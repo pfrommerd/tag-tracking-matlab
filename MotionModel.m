@@ -92,7 +92,7 @@ classdef MotionModel < handle
                 tag(1).id = ids(i);
                 tag(1).color = 'r';
                 tag(1).size = 0.001 * [sizes(i) sizes(i)];
-                tag(1).border = [0.02 0.02];
+                tag(1).border = [0.03 0.03];
 
                 pos = (0.001 .* [posX(i) posY(i) posZ(i)])';
                 rot = vrrotvec_to_quat([rotX(i) rotY(i) rotZ(i) rotW(i)])';
@@ -110,8 +110,7 @@ classdef MotionModel < handle
                 id = this.modelledTags{i}.id;
                 if length(detectedTagMap.keys) >= id + 1 && detectedTagMap.keys{id ...
                                         + 1} > 0
-                    transTag = detectedTagMap.values{
-                        detectedTagMap.keys{id + 1}};
+                    transTag = detectedTagMap.values{detectedTagMap.keys{id + 1}};
 
 
                     % Update the corners
@@ -154,46 +153,59 @@ classdef MotionModel < handle
         
         function tags = process(this, img, detectedTagMap)
 
+            % ---------------------  Resample -----------------------
+            fprintf('*** Resampling ***\n');
+            fprintf('--> Resampling');
+            tic();
+
+            [this.particles, this.weights] = ...
+                resample_particles(size(this.particles, 2), ...
+                                   this.particles, ...
+                                   this.weights);
+
+            fprintf('; Took: %f\n', toc());
+
             % --------------------  Propagate  ---------------------------
             
-            printf('** Propagating ***\n'); fflush(stdout);            
+            fprintf('** Propagating ***\n');
 
             % Propagate by sampling from q
-            printf('--> Propagating'); fflush(stdout);
+            fprintf('--> Propagating');
             tic();
 
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.params.process_noise, ...
                                     this.params.k, this.params.alpha);
 
-            printf('; Took: %f\n', toc()); fflush(stdout);            
+            fprintf('; Took: %f\n', toc());
 
             
             % -----------------------  Measure  ----------------------------
-            printf('** Measuring ***\n'); fflush(stdout);
+            fprintf('** Measuring ***\n');
 
             % First update the patches
-            printf('--> Updating patches'); fflush(stdout);
+            fprintf('--> Updating patches');
             tic();
 
             this.updatePatches(detectedTagMap, img);
             
-            printf('; Took: %f\n', toc()); fflush(stdout);            
+            fprintf('; Took: %f\n', toc());           
 
-            printf('--> Measuring particles'); fflush(stdout);
+            fprintf('--> Measuring particles');
             tic();
 
             Z = this.measureParticles(this.particles, img, detectedTagMap);
-            this.measurements = Z;
             
-            printf('; Took: %f\n', toc()); fflush(stdout);            
+            fprintf('; Took: %f\n', toc());           
 
-            printf('--> Transforming measurements'); fflush(stdout);
+            fprintf('--> Transforming measurements');
             tic();
             
             
             % Convert the measurements to weights
             W = this.transformMeasurements(Z);
+            % this.measurements is really just the transformed weights
+            this.measurements = W;
             
             % Update the old weights
             % using the formula w' = w * p(x'|x)/q(x'|x,y)
@@ -213,9 +225,9 @@ classdef MotionModel < handle
             end
             this.weights = this.weights / weightSum;
 
-            printf('; Took: %f\n', toc()); fflush(stdout);            
+            fprintf('; Took: %f\n', toc());          
 
-            printf('--> Selecting final particle and updating tags'); fflush(stdout);
+            fprintf('--> Selecting final particle and updating tags');
             tic();
             
             % Pick the particle with the highest weight
@@ -227,21 +239,7 @@ classdef MotionModel < handle
             % Measure which tags we should get rid of
             this.updateVisibleTags(x, img);
             
-            printf('; Took: %f\n', toc()); fflush(stdout);
-
-            % ---------------------  Resample -----------------------
-            printf('*** Resampling ***\n'); fflush(stdout);
-            printf('--> Resampling'); fflush(stdout);
-            tic();
-
-            fflush(stdout);
-            [this.particles, this.weights] = ...
-                resample_particles(size(this.particles, 2), ...
-                                   this.particles, ...
-                                   this.weights);
-            fflush(stdout);
-
-            printf('; Took: %f\n', toc()); fflush(stdout);            
+            fprintf('; Took: %f\n', toc());
         end
         
         % Utilities for measuring particles
@@ -276,14 +274,14 @@ classdef MotionModel < handle
                     
                     err = measure_patch_error(p, t.refPatch);
                     if length(detectedTagMap.keys) >= t.id + 1 && detectedTagMap.keys{t.id + 1} > 0
-                        detectedTag = detectedTagMap.values{
-                                          detectedTagMap.keys{t.id + 1}};
+                        detectedTag = detectedTagMap.values{detectedTagMap.keys{t.id + 1}};
                         % Calculate corner error
                         projTags = project_tags(this.tagParams.K, {t});
                         projTag = projTags{1};
 
                         corners_diff = (projTag.corners - detectedTag.corners);
-                        corner_err = this.params.rho * sum(sum(corners_diff .* corners_diff)); 
+                        corner_err = this.params.rho * sum(sum(corners_diff ...
+                                                               .* corners_diff));
                         err = err + corner_err;
                     end
                     z = z + err;
@@ -369,18 +367,19 @@ classdef MotionModel < handle
             
             gen_particles = [ this.particles(1:3, :) [s_x s_y s_z]' ];
             
-            gen_m = [ this.weights ...
+            gen_w = [ this.weights ...
                       zeros([1, size(s_x, 1)])];
 
             colormap('jet');
-            caxis auto;
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_particles(3, :), 5, gen_m);
+                     gen_particles(3, :), 5, gen_w);
             
             figure(fig3);
             colormap('jet');
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_m, 5, gen_m);
+                     gen_w, 5, gen_w);
+            
+            figure(fig2);
         end        
     end
 end

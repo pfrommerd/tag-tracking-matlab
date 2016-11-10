@@ -1,8 +1,7 @@
-function [ M ] = algorithm(tracker, images, record)
+function [ M ] = algorithm(tracker, detector, images, record)
     M = [];
     
     disp('Initializing figures');
-    fflush(stdout);
     
     fig1 = figure(1);
     fig2 = figure(2);
@@ -12,28 +11,30 @@ function [ M ] = algorithm(tracker, images, record)
     figure(1);
     
     disp('Entering main loop');
-    fflush(stdout);
     
     while images.hasImage()
-        printf('------------------------------\n');      
-        printf(':: Reading image\n'); fflush(stdout);
+        fprintf('------------------------------\n');      
+        fprintf(':: Reading image\n'); 
         tic();
         img = images.readImage();
-        printf('// Took %f\n', toc());
+        fprintf('// Took %f\n', toc());
 	
-        disp(':: Processing image'); fflush(stdout);
-        tags = tracker.process(img);
+        fprintf(':: Processing image'); 
+        detector_tags = detector.process(img);
+        tags = tracker.process(img, detector_tags);
                 
-        printf(':: Clearing figures\n'); fflush(stdout);
+        fprintf(':: Clearing figures\n');
         tic();
 
+        %{
         clf(fig1);
         clf(fig2);
         clf(fig3);
         clf(fig4);
+        %}
         
-        printf('// Took %f\n', toc());
-        printf(':: Displaying result\n'); fflush(stdout);
+        fprintf('// Took %f\n', toc());
+        fprintf(':: Displaying result\n');
         tic();
 
         figure(1);
@@ -46,27 +47,29 @@ function [ M ] = algorithm(tracker, images, record)
         tags = project_tags(tracker.params.K, tags);
         
         drawTags(tags);
+        drawnow;
         
         figure(2);
         
-        printf('// Took %f\n', toc());
-        printf(':: Displaying debug stuff\n'); fflush(stdout);
+        fprintf('// Took %f\n', toc());
+        fprintf(':: Displaying debug stuff\n');
         tic();
 
+        drawnow;
         tracker.debug(fig2, fig3, fig4);
         figure(1);
 
-        printf('// Took %f\n', toc()); fflush(stdout);
+        fprintf('// Took %f\n', toc());
 
+        
+        
         if record
             tic();
-            disp('Getting frame');
-            fflush(stdout);
+            fprintf('Getting frame');
 
             M = [ M getframe(fig1) ];
 
             disp('-- '), disp(toc());
-            fflush(stdout);
         end
     end
 end

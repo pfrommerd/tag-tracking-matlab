@@ -1,26 +1,27 @@
 function [  ] = run(config, shouldRecord)
     tracker = [];
+    detector = [];
     frames = [];
     M = [];
     
     switch config
-        case 'seq1'
-            [tracker, frames] = setup_seq1();
-        case 'test1'
-            [tracker, frames] = setup_test1();
+        case 'hard_seq'
+            [tracker, detector, frames] = setup_hard_seq();
+        case 'test_video'
+            [tracker, detector, frames] = setup_test_video();
         otherwise
             return;
     end
     
     if (exist('shouldRecord', 'var') && shouldRecord)
-        M = algorithm(tracker, frames, true);
+        M = algorithm(tracker, detector, frames, true);
     else
-        algorithm(tracker, frames, false);
+        algorithm(tracker, detector, frames, false);
     end
 end
 
-function [tracker, frames] = setup_seq1()
-    frames = ImagesSource('../seq1_still');
+function [tracker, detector, frames] = setup_hard_seq()
+    frames = ImagesSource('../data/hard_seq/images');
 
     % Image parameters
     K = [568.8885   0           959.1503;
@@ -35,7 +36,7 @@ function [tracker, frames] = setup_seq1()
     trackParams(1).patchSize = [64 64];
     
     % Create the tracker
-    tracker = AprilTrack(detector, trackParams);
+    tracker = AprilTrack(trackParams);
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
@@ -60,7 +61,7 @@ function [tracker, frames] = setup_seq1()
 
     model = MotionModel(mmParams, @ego_transform, @ego_invtransform, ...
                         @ego_invtransform2);
-    model.loadTags('../tags_seq1.txt');
+    model.loadTags('../data/hard_seq/tags.txt');
 
     initial_pos = [1.1029; 0.2798; -0.3398;  0.499; 0.499; -0.501; 0.501; 0; 0; 0; 0; 0; 0];
     initial_random = [[0.1; 0.1; 0.1];  [0.05; 0.05; 0.05]; [0; 0; 0]; [0; 0; 0]];
@@ -71,8 +72,8 @@ function [tracker, frames] = setup_seq1()
 end
 
 
-function [tracker, frames] = setup_test1()
-    frames = ImagesSource('../test_video');
+function [tracker, detector, frames] = setup_test_video()
+    frames = ImagesSource('../data/test/images');
 
     % Image parameters
     K = [1002.6   0           540.9;
@@ -87,33 +88,35 @@ function [tracker, frames] = setup_test1()
     trackParams(1).patchSize = [64 64];
     
     % Create the tracker
-    tracker = AprilTrack(detector, trackParams);
+    tracker = AprilTrack(trackParams);
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
     mmParams(1).num_particles = 4000;
-    mmParams(1).process_noise = [0.02 0.02 0.02 ...
+    mmParams(1).process_noise = [0.03 0.03 0.03 ...
                                  0.05 0.05 0.05 ...
                                  0 0 0 ...
                                  0 0 0];
     % Weight of the tag corner error
     % error = rho * sqr(corner error)
-    mmParams(1).rho = 1e-10;
+    mmParams(1).rho = 1e-6;
 
-    % noise = 1 / (k + alpha * w)
+    % noise = 1 / (k + alpha * w) * process_noise * randn
     % Allows for particles of higher/lower weight to have
-    % more noise
+    % more noise in the propagation step
+
+    % ATM, we resample after every pass, so don't bother...
     mmParams(1).k = 1;
     mmParams(1).alpha = 0;
 
     % For measurement error --> weight conversion
     % where weight = e^(-lambda * measurement)
-    mmParams(1).lambda = 8;
+    mmParams(1).lambda = 6;
 
     model = MotionModel(mmParams, @tag_transform, @tag_invtransform, ...
                         @tag_invtransform2);
 
-    model.loadTags('../tags_test1.txt');
+    model.loadTags('../data/test/tags.txt');
     
     initial = [0.1862224; -0.0067017; 0.696942; ...
                0.991367; -0.124779; -0.014736; 0.037472;...
