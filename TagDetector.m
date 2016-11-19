@@ -38,10 +38,11 @@ classdef TagDetector < TagSource
                 H = homography_solve(pin, corners);
                 [R, T] = homography_extract_pose(this.K, H);
                 
-                rot = rotm_to_quat(R)';
-
-                T
-                rot
+                rot = rotm_to_quat(R')';
+                if r.id == 0
+                    -T
+                    rot
+                end
                 
                 %}
 

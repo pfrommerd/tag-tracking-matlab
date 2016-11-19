@@ -5,10 +5,13 @@ classdef ImagesSource < FrameSource
     properties
         dir
         files
+        
+        useUndistort
+        camParams
     end
     
     methods
-        function obj = ImagesSource(directory)
+        function obj = ImagesSource(directory, camParams)
             files = dir(directory);
             
             obj.files = {};
@@ -24,6 +27,11 @@ classdef ImagesSource < FrameSource
                 end
                 i = i + 1;
             end
+            
+            if exist('camParams', 'var')
+                obj.useUndistort = true;
+                obj.camParams = camParams;
+            end            
         end
         
         function hasImage = hasImage(this)
@@ -35,7 +43,13 @@ classdef ImagesSource < FrameSource
             this.files(:, 1) = [];
 
             img = imread(f);
-            img = rgb2gray(img);
+            if ndims(img) > 2
+                img = rgb2gray(img);
+            end
+            
+            if this.useUndistort
+                img = undistortImage(img, this.camParams);
+            end
         end
     end
     

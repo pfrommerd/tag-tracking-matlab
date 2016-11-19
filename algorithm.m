@@ -3,10 +3,10 @@ function [ M ] = algorithm(tracker, detector, images, record)
     
     disp('Initializing figures');
     
-    fig1 = figure(1);
-    fig2 = figure(2);
-    fig3 = figure(3);
-    fig4 = figure(4);
+    fig1 = sfigure(1);
+    fig2 = sfigure(2);
+    fig3 = sfigure(3);
+    fig4 = sfigure(4);
     
     figure(1);
     
@@ -26,7 +26,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
         fprintf(':: Clearing figures\n');
         tic();
 
-        %{
+        %%{
         clf(fig1);
         clf(fig2);
         clf(fig3);
@@ -37,7 +37,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
         fprintf(':: Displaying result\n');
         tic();
 
-        figure(1);
+        sfigure(1);
         colormap(gray(255));
         image(img);
         hold on;
@@ -45,24 +45,20 @@ function [ M ] = algorithm(tracker, detector, images, record)
         % project the tags, will be stored in the
         % tags array
         tags = project_tags(tracker.params.K, tags);
-        
         drawTags(tags);
-        drawnow;
         
-        figure(2);
+        sfigure(2);
         
         fprintf('// Took %f\n', toc());
         fprintf(':: Displaying debug stuff\n');
         tic();
 
-        drawnow;
         tracker.debug(fig2, fig3, fig4);
-        figure(1);
+        sfigure(1);
 
         fprintf('// Took %f\n', toc());
-
         
-        
+        drawnow;
         if record
             tic();
             fprintf('Getting frame');

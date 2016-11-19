@@ -1,6 +1,8 @@
 classdef MotionModel < handle
     
     properties
+        x % The best particle from the last iteration
+        
         weights
         measurements
         particles
@@ -10,12 +12,6 @@ classdef MotionModel < handle
         
         % Will transform a tag state by a particle
         transform
-        % Will take a modelled tag state, a transformed state
-        % and give a particle
-        invtransform
-        % Will take a transformed state and a particle and give
-        % a modelled tag state
-        invtransform2
         
         % All the tags incorporated
         % in this motion model
@@ -28,10 +24,8 @@ classdef MotionModel < handle
     end
     
     methods
-        function obj = MotionModel(parameters, transform, invtransform, invtransform2)
+        function obj = MotionModel(parameters, transform)
             obj.transform = transform;
-            obj.invtransform = invtransform;
-            obj.invtransform2 = invtransform2;
             
             obj.params = parameters;
             obj.weights = (1/parameters.num_particles) * ...
@@ -50,11 +44,13 @@ classdef MotionModel < handle
         
         % Will set all the particles to a specific x
         function initializeParticlesTo(this, x)
+            this.x = x;
             this.particles = repmat(x, 1, this.params.num_particles);
         end
         
         % Draw initial particles from a distribution
         function initializeParticlesRandom(this, mu, sigma)
+            this.x = mu;
             for i=1:size(this.particles, 2)
                 x = mu;
                 
@@ -108,8 +104,9 @@ classdef MotionModel < handle
         function updatePatches(this, detectedTagMap, img) 
             for i=1:length(this.modelledTags)
                 id = this.modelledTags{i}.id;
-                if length(detectedTagMap.keys) >= id + 1 && detectedTagMap.keys{id ...
-                                        + 1} > 0
+                if (length(detectedTagMap.keys) >= id + 1) && ...
+                    (length(detectedTagMap.keys{id + 1}) > 0) && ...
+                    (detectedTagMap.keys{id + 1} > 0)
                     transTag = detectedTagMap.values{detectedTagMap.keys{id + 1}};
 
 
@@ -152,7 +149,7 @@ classdef MotionModel < handle
 
         
         function tags = process(this, img, detectedTagMap)
-
+  
             % ---------------------  Resample -----------------------
             fprintf('*** Resampling ***\n');
             fprintf('--> Resampling');
@@ -231,14 +228,14 @@ classdef MotionModel < handle
             tic();
             
             % Pick the particle with the highest weight
+            %%{
             [z, i] = max(this.weights);
-            x = this.particles(:, i);
-            
-            tags = this.transformTags(x);
-            
+            this.x = this.particles(:, i);
             % Measure which tags we should get rid of
-            this.updateVisibleTags(x, img);
-            
+            %this.updateVisibleTags(this.x, img);
+            %}
+
+            tags = this.transformTags(this.x);
             fprintf('; Took: %f\n', toc());
         end
         
@@ -273,7 +270,9 @@ classdef MotionModel < handle
                                       img, t);
                     
                     err = measure_patch_error(p, t.refPatch);
-                    if length(detectedTagMap.keys) >= t.id + 1 && detectedTagMap.keys{t.id + 1} > 0
+                    if length(detectedTagMap.keys) >= t.id + 1 && ...
+                            (length(detectedTagMap.keys{t.id + 1}) > 0) && ...
+                            detectedTagMap.keys{t.id + 1} > 0
                         detectedTag = detectedTagMap.values{detectedTagMap.keys{t.id + 1}};
                         % Calculate corner error
                         projTags = project_tags(this.tagParams.K, {t});
@@ -338,7 +337,7 @@ classdef MotionModel < handle
         
         
         function debug(this, fig1, fig2, fig3)
-            figure(fig1);
+            sfigure(fig1);
             colormap(gray(255));
             
             % Draw the tags on figure1
@@ -356,7 +355,7 @@ classdef MotionModel < handle
                 end
             end
             
-            figure(fig2);
+            sfigure(fig2);
             g_x = linspace(-1, 1, 3);
             g_y = linspace(-1, 1, 3);
             g_z = linspace(-1, 1, 3);
@@ -374,12 +373,12 @@ classdef MotionModel < handle
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_particles(3, :), 5, gen_w);
             
-            figure(fig3);
+            sfigure(fig3);
             colormap('jet');
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_w, 5, gen_w);
             
-            figure(fig2);
+            sfigure(fig2);
         end        
     end
 end

@@ -39,7 +39,7 @@ classdef AprilTrack < TagSource
         
         function tags = process(this, img, detector_tags)
             tagMap.keys = {};
-            tagMap.values = {};
+            tagMap.values = {};            
             
             for i=1:length(detector_tags)
                 tag = detector_tags{i};

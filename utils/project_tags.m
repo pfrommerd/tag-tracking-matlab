@@ -1,7 +1,6 @@
 function tags = project_tags(K, tags)
     for i=1:length(tags)
         x = tags{i}.state;
-        
         tagSize = tags{i}.size;
         X = [[-tagSize(1)/2; -tagSize(2)/2; 1] ...
              [ tagSize(1)/2; -tagSize(2)/2; 1] ...
