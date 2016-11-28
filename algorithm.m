@@ -20,18 +20,16 @@ function [ M ] = algorithm(tracker, detector, images, record)
         fprintf('// Took %f\n', toc());
 	
         fprintf(':: Processing image'); 
-        detector_tags = detector.process(img);
+        [detector_tags] = detector.process(img);
         tags = tracker.process(img, detector_tags);
                 
         fprintf(':: Clearing figures\n');
         tic();
 
-        %%{
         clf(fig1);
         clf(fig2);
         clf(fig3);
         clf(fig4);
-        %}
         
         fprintf('// Took %f\n', toc());
         fprintf(':: Displaying result\n');
@@ -45,6 +43,9 @@ function [ M ] = algorithm(tracker, detector, images, record)
         % project the tags, will be stored in the
         % tags array
         tags = project_tags(tracker.params.K, tags);
+        
+        %drawTags(detector_tags, 'symbol', 'x');
+        %drawTags(reproj_tags, 'symbol', 'o');
         drawTags(tags);
         
         sfigure(2);
@@ -70,14 +71,22 @@ function [ M ] = algorithm(tracker, detector, images, record)
     end
 end
 
-function drawTags(tags)
+function drawTags(tags, varargin)
+    disp('foo');
     for i=1:length(tags)
-        drawTag(tags{i});
+        drawTag(tags{i}, varargin);
     end
 end
 
 % Draws a (projected!) tag
-function drawTag(tag)
+function drawTag(tag, vars)
+    symbol = 'x';
+    for i=1:length(vars)
+        if strcmp(vars{i},'symbol')
+            symbol = vars{i + 1};
+        end
+    end
+    
     if max(size(tag)) < 1
         return
     end
@@ -86,5 +95,5 @@ function drawTag(tag)
     x = points(1, :);
     y = points(2, :);
     
-    plot([x x(1)], [y y(1)], '.-', 'Color', color);
+    plot([x x(1)], [y y(1)], symbol, 'Color', color);
 end

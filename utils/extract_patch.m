@@ -1,18 +1,7 @@
-function p = extract_patch(K, patchSize, coords, img, tag)
+function p = extract_patch(patchSize, coords, img, tag)
     p = zeros(patchSize);
     
-    % Create the homography
-    R = quat_to_rotm(tag.state(4:7));
-    T = tag.state(1:3);
-    H = K * [R(:, 1:2) T];
-    
-    % Project the coords
-    s = tag.size + tag.border;
-    S = [s(1) 0 0; ...
-         0 s(2) 0; ...
-         0 0    1];
-    % Modify H to scale by size first
-    H = H * S;
+    H = tag.homography;
 
     c = homography_project(H, coords);
     
@@ -23,9 +12,24 @@ function p = extract_patch(K, patchSize, coords, img, tag)
        length(find(y < 1)) > 0 || ...
        length(find(x > size(img, 2))) > 0 || ...
        length(find(y > size(img, 1))) > 0
-        
         p = [];
-        return;
+        return
+        %{
+        yob = find(y < 1);
+        y(yob) = ones(1, length(yob));
+        yob = find(y > size(img, 1));
+        y(yob) = ones(1, length(yob));
+        
+        xob = find(x < 1);
+        x(xob) = ones(1, length(xob));
+        xob = find(x > size(img, 2));
+        x(xob) = ones(1, length(xob));        
+
+        %length(ob)
+        %c(:, ob(1:10))
+        %coords(:, ob(1:10))
+        %return;
+        %}
     end
     idx = sub2ind(size(img), y, x);
     v = img(idx);

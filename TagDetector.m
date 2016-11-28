@@ -14,20 +14,18 @@ classdef TagDetector < TagSource
             detector.params = params;
         end
         
-        function tags = process(this, img)
+        function [tags] = process(this, img)
             fprintf('--> Detecting tags');
             tic();
 
             results = find_apriltags(img, this.tagSize(1), this.params);
-
-            
 
             tags = cell(1, length(results));
             for i = 1:length(tags);
                 r = results(i);
 
                 corners = r.corners';
-
+    
                 %{
                 tagSize = this.tagSize/2;
                 pin = [-tagSize(1), -tagSize(2); ...
@@ -45,7 +43,7 @@ classdef TagDetector < TagSource
                 end
                 
                 %}
-
+                
                 tag.id = r.id;
                 tag.corners = corners;
                 tag.color = 'r';

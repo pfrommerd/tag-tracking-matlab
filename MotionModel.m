@@ -107,41 +107,31 @@ classdef MotionModel < handle
                 if (length(detectedTagMap.keys) >= id + 1) && ...
                     (length(detectedTagMap.keys{id + 1}) > 0) && ...
                     (detectedTagMap.keys{id + 1} > 0)
-                    transTag = detectedTagMap.values{detectedTagMap.keys{id + 1}};
-
+                    tag = detectedTagMap.values{detectedTagMap.keys{id + 1}};
 
                     % Update the corners
-                    this.modelledTags{i}.refPatchCorners = transTag.corners;
+                    this.modelledTags{i}.refPatchCorners = tag.corners;
 
-                    
-                    % Update the reference patch
-
-                    tag = this.modelledTags{i};
-
-                    % First compute the state from the corners
-                    tagSize = tag.size/2;
+                    % Calculate the homography from the detected tag
+                    % corners
+                    tagSize = this.modelledTags{i}.size/2;
                     pin = [-tagSize(1), -tagSize(2); ...
-                           tagSize(1), -tagSize(2); ...
-                           tagSize(1),  tagSize(2);...
-                           -tagSize(1),  tagSize(2)];
+                            tagSize(1), -tagSize(2); ...
+                            tagSize(1),  tagSize(2);...
+                           -tagSize(1),  tagSize(2)];                
 
-                    H = homography_solve(pin, transTag.corners);
-                    % Extract the rotation and translation
-                    [R, T] = homography_extract_pose(this.tagParams.K, H);
-
-                    % Comute a quaternion from a rot mat
-                    % and set that to the tag's state (so that we get a
-                    % transformed tag to stuff into extract_patch)
-                    tag.state = [T; rotm_to_quat(R)'; 0; 0; 0; 0; 0; 0];
-
-
-                    % Extract the patch
-                    this.modelledTags{i}.refPatch = ... 
-                        extract_patch(this.tagParams.K, ...
-                                      this.tagParams.patchSize, ...
-                                      this.tagParams.coords, ...
-                                      img, tag);
+                    H = homography_solve(pin, tag.corners);
+                    % Scale to get the border as well + right units
+                    s = this.modelledTags{i}.size + this.modelledTags{i}.border;
+                    S = [s(1) 0 0; 0 s(2) 0; 0 0 1];
                     
+                    tag.homography = H * S;
+                    
+                    % Extract the patch based on the tag homography
+                    this.modelledTags{i}.refPatch = ... 
+                        extract_patch(this.tagParams.patchSize, ...
+                                      this.tagParams.coords, ...
+                                      img, tag);                    
                     this.visibleTags(i) = 1;
                 end
             end
@@ -149,7 +139,6 @@ classdef MotionModel < handle
 
         
         function tags = process(this, img, detectedTagMap)
-  
             % ---------------------  Resample -----------------------
             fprintf('*** Resampling ***\n');
             fprintf('--> Resampling');
@@ -191,7 +180,7 @@ classdef MotionModel < handle
             fprintf('--> Measuring particles');
             tic();
 
-            Z = this.measureParticles(this.particles, img, detectedTagMap);
+            Z = this.measureParticles(this.particles, img);
             
             fprintf('; Took: %f\n', toc());           
 
@@ -235,12 +224,12 @@ classdef MotionModel < handle
             %this.updateVisibleTags(this.x, img);
             %}
 
-            tags = this.transformTags(this.x);
+            tags = this.transformTags(this.x, detectedTagMap);
             fprintf('; Took: %f\n', toc());
         end
         
         % Utilities for measuring particles
-        function Z = measureParticles(this, X, img, detectedTagMap)
+        function Z = measureParticles(this, X, img)
             Z = zeros([1 size(X, 2)]);
             
             % Find all the tags which have a positive weight
@@ -262,27 +251,15 @@ classdef MotionModel < handle
                     t = tags{i};
                     % Transform the state of the tag
                     t.state = this.transform(t.state, x);
+                    t.homography = homography_from_state(this.tagParams.K, t);
                     
-                    % Measure the error
-                    p = extract_patch(this.tagParams.K, ...
-                                      this.tagParams.patchSize, ...
+                    % Extract the patch based on the homography
+                    % and calculate the error
+                    p = extract_patch(this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
                                       img, t);
                     
                     err = measure_patch_error(p, t.refPatch);
-                    if length(detectedTagMap.keys) >= t.id + 1 && ...
-                            (length(detectedTagMap.keys{t.id + 1}) > 0) && ...
-                            detectedTagMap.keys{t.id + 1} > 0
-                        detectedTag = detectedTagMap.values{detectedTagMap.keys{t.id + 1}};
-                        % Calculate corner error
-                        projTags = project_tags(this.tagParams.K, {t});
-                        projTag = projTags{1};
-
-                        corners_diff = (projTag.corners - detectedTag.corners);
-                        corner_err = this.params.rho * sum(sum(corners_diff ...
-                                                               .* corners_diff));
-                        err = err + corner_err;
-                    end
                     z = z + err;
                 end
                 Z(n) = z;
@@ -295,7 +272,7 @@ classdef MotionModel < handle
             W = exp(-this.params.lambda * Z);
         end
 
-        function tags = transformTags(this, x)
+        function tags = transformTags(this, x, detectedTagMap)
             tags = {};
             
             c = 1;
@@ -306,6 +283,15 @@ classdef MotionModel < handle
                 tags{c} = this.modelledTags{i};
                 % Adjust the state vector
                 tags{c}.state = this.transform(tags{c}.state, x);
+                
+                
+                id = this.modelledTags{i}.id;
+                if (length(detectedTagMap.keys) >= id + 1) && ...
+                   (length(detectedTagMap.keys{id + 1}) > 0) && ...
+                   (detectedTagMap.keys{id + 1} > 0)
+               
+                    tags{c}.color = 'y';
+                end
                 c = c + 1;
             end
         end
@@ -319,11 +305,11 @@ classdef MotionModel < handle
                 w = this.visibleTags(i);
                 if w > 0
                     % Transform the state
-                    t.state = this.transform(t.state, x);
+                    t.state = this.transform(t.state, x);h
+                    t.homography = homography_from_state(t);
                     
                     % Measure the error
-                    p = extract_patch(this.tagParams.K, ...
-                                      this.tagParams.patchSize, ...
+                    p = extract_patch(this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
                                       img, t);
                     
@@ -351,6 +337,7 @@ classdef MotionModel < handle
                     if length(t.refPatch) > 0
                         h = subplot(n, n, i);
                         image(t.refPatch, 'Parent', h);
+                        title(t.id);
                     end
                 end
             end

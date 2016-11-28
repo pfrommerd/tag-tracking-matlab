@@ -47,9 +47,6 @@ function [tracker, detector, frames] = setup_hard_seq()
                                  0.01 0.01 0.01 ...
                                  0 0 0 ...
                                  0 0 0];
-    % Weight of the tag corner error
-    % error = rho * sqr(corner error)
-    mmParams(1).rho = 1e-10;
 
     % noise = 1 / (k + alpha * w)
     % Allows for particles of higher/lower weight to have
@@ -95,13 +92,10 @@ function [tracker, detector, frames] = setup_test_video()
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
     mmParams(1).num_particles = 4000;
-    mmParams(1).process_noise = [0.03 0.03 0.03 ...
-                                 0.05 0.05 0.05 ...
-                                 0 0 0 ...
-                                 0 0 0];
-    % Weight of the tag corner error
-    % error = rho * sqr(corner error)
-    mmParams(1).rho = 1e-6;
+    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+                                 0.01 0.01 0.01 ...
+                                 0.02 0.02 0.02 ...
+                                 0.01 0.01 0.01];
 
     % noise = 1 / (k + alpha * w) * process_noise * randn
     % Allows for particles of higher/lower weight to have
@@ -115,8 +109,7 @@ function [tracker, detector, frames] = setup_test_video()
     % where weight = e^(-lambda * measurement)
     mmParams(1).lambda = 6;
 
-    model = MotionModel(mmParams, @tag_transform, @tag_invtransform, ...
-                        @tag_invtransform2);
+    model = MotionModel(mmParams, @tag_transform);
 
     model.loadTags('../data/test/tags.txt');
     
@@ -143,22 +136,19 @@ function [tracker, detector, frames] = setup_movcam1()
     trackParams(1).K = K;
     
     % Patch size
-    trackParams(1).patchSize = [64 64];
+    trackParams(1).patchSize = [32 32];
     
     % Create the tracker
     tracker = AprilTrack(trackParams);
 
     % Add a motion model
-    mmParams(1).err_discard_threshold = 0.9;
-    mmParams(1).num_particles = 4000;
-    mmParams(1).process_noise = [0.03 0.03 0.03 ...
-                                 0.03 0.03 0.03 ...
-                                 0 0 0 ...
-                                 0 0 0];
-    % Weight of the tag corner error
-    % error = rho * sqr(corner error)
-    mmParams(1).rho = 1e-5;
-
+    mmParams(1).err_discard_threshold = 0.01;
+    mmParams(1).num_particles = 10000;
+    mmParams(1).process_noise = [0.01 0.01 0.01 ...
+                                 0.02 0.02 0.02 ...
+                                 0.005 0.005 0.005 ...
+                                 0.005 0.005 0.005];
+                             
     % noise = 1 / (k + alpha * w) * process_noise * randn
     % Allows for particles of higher/lower weight to have
     % more noise in the propagation step
