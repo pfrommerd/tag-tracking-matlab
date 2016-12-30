@@ -38,6 +38,8 @@ classdef MotionModel < handle
             obj.visibleTags = [];
         end
 
+        % Will be called by the motion model to pass
+        % along the coordinates
         function setTagParams(this, tagParams)
             this.tagParams = tagParams;
         end
@@ -81,14 +83,14 @@ classdef MotionModel < handle
         end
         
         function loadTags(this, file)
-            [ids, sizes, posX, posY, posZ, rotX, rotY, rotZ, rotW] = ...
-                textread(file, '%f %f %f %f %f %f %f %f %f');
-
+            [ids, sizes, border, posX, posY, posZ, rotX, rotY, rotZ, rotW] = ...
+                textread(file, '%f %f %f %f %f %f %f %f %f %f', 'commentstyle', 'shell');
+            
             for i=1:length(ids)
                 tag(1).id = ids(i);
                 tag(1).color = 'r';
                 tag(1).size = 0.001 * [sizes(i) sizes(i)];
-                tag(1).border = [0.03 0.03];
+                tag(1).border = 0.001 * [border(i) border(i)];
 
                 pos = (0.001 .* [posX(i) posY(i) posZ(i)])';
                 rot = vrrotvec_to_quat([rotX(i) rotY(i) rotZ(i) rotW(i)])';
@@ -131,7 +133,8 @@ classdef MotionModel < handle
                     this.modelledTags{i}.refPatch = ... 
                         extract_patch(this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
-                                      img, tag);                    
+                                      img, tag);
+                    % make sure we note that the tag is visible
                     this.visibleTags(i) = 1;
                 end
             end
@@ -160,8 +163,7 @@ classdef MotionModel < handle
             tic();
 
             this.particles = q_smpl(this.particles, this.weights, 1, ...
-                                    this.params.process_noise, ...
-                                    this.params.k, this.params.alpha);
+                                    this.params.process_noise);
 
             fprintf('; Took: %f\n', toc());
 
@@ -189,25 +191,18 @@ classdef MotionModel < handle
             
             
             % Convert the measurements to weights
+            this.measurements = Z;
             W = this.transformMeasurements(Z);
             % this.measurements is really just the transformed weights
-            this.measurements = W;
             
             % Update the old weights
-            % using the formula w' = w * p(x'|x)/q(x'|x,y)
-            % where q(x') = p(x') * 1/(k + alpha*w)
-            % as particles with lower weights should have more noise
-            % so p(x') = (k + alpha * w) * q(x')
-            % and p(x')/q(x') = k + akpha * w
-            
-            this.weights = this.weights .* W .* ...
-                (this.params.alpha .* this.weights + this.params.k);
+            this.weights = this.weights .* W;
             
             % Finally, normalize the weights again
             weightSum = sum(this.weights);
             if weightSum == 0
-                this.weights(1) = 0.0001;
-                weightSum = 0.0001;
+                this.weights(1) = 1;
+                weightSum = 1;
             end
             this.weights = this.weights / weightSum;
 
@@ -220,9 +215,9 @@ classdef MotionModel < handle
             %%{
             [z, i] = max(this.weights);
             this.x = this.particles(:, i);
+            
             % Measure which tags we should get rid of
-            %this.updateVisibleTags(this.x, img);
-            %}
+            this.removeOccludedTags(this.x, img);
 
             tags = this.transformTags(this.x, detectedTagMap);
             fprintf('; Took: %f\n', toc());
@@ -246,8 +241,8 @@ classdef MotionModel < handle
             for n=1:size(X, 2)
                 x = X(:, n);
                 
-                z = 0;
-                for i=1:size(tags)
+                z = 1;
+                for i=1:size(tags, 2)
                     t = tags{i};
                     % Transform the state of the tag
                     t.state = this.transform(t.state, x);
@@ -260,9 +255,12 @@ classdef MotionModel < handle
                                       img, t);
                     
                     err = measure_patch_error(p, t.refPatch);
-                    z = z + err;
+                    z = z * err;
+                    %z
                 end
                 Z(n) = z;
+                
+                %pause(1);
             end
         end
         
@@ -298,23 +296,26 @@ classdef MotionModel < handle
         
         
         
-        function updateVisibleTags(this, x, img)
+        function removeOccludedTags(this, x, img)
             for i=1:length(this.modelledTags)
                 t = this.modelledTags{i};
                 
                 w = this.visibleTags(i);
                 if w > 0
                     % Transform the state
-                    t.state = this.transform(t.state, x);h
-                    t.homography = homography_from_state(t);
+                    t.state = this.transform(t.state, x);
+                    t.homography = homography_from_state(this.tagParams.K, t);
                     
                     % Measure the error
                     p = extract_patch(this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
                                       img, t);
                     
+                    %p
+                    %t.refPatch
                     err = measure_patch_error(p, t.refPatch);
-                    if err > this.params.err_discard_threshold
+                    err
+                    if err >= this.params.err_discard_threshold
                         this.visibleTags(i) = 0;
                     end
                 end
@@ -322,7 +323,7 @@ classdef MotionModel < handle
         end
         
         
-        function debug(this, fig1, fig2, fig3)
+        function debug(this, fig1, fig2, fig3, fig4)
             sfigure(fig1);
             colormap(gray(255));
             
@@ -356,6 +357,9 @@ classdef MotionModel < handle
             gen_w = [ this.weights ...
                       zeros([1, size(s_x, 1)])];
 
+            gen_m = [ this.measurements ...
+                  zeros([1, size(s_x, 1)])];
+
             colormap('jet');
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_particles(3, :), 5, gen_w);
@@ -365,7 +369,9 @@ classdef MotionModel < handle
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_w, 5, gen_w);
             
-            sfigure(fig2);
+            sfigure(fig4);
+            scatter3(gen_particles(1, :), gen_particles(2, :), ...
+                     gen_m, 5, gen_m);
         end        
     end
 end

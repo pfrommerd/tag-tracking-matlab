@@ -9,7 +9,7 @@ function y = q_smpl(x, w, deltaT, r, k, alpha)
     for i=1:size(x, 2)
         xp = x(:, i);
         % Add some noise        
-        noise = 1 / (k + alpha * w(i)) * (r .* randn(1, 12))';
+        noise = (r .* randn(1, 12))';
         xp(:) = xp(:) + [noise(1:3); 1; 0; 0; 0; noise(7:12)];
         % Special case for the quaternion
         xp(4:7) = qmult(x(4:7, i)', rotvec_to_quat(noise(4:6)'))';

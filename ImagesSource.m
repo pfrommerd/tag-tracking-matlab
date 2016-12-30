@@ -3,26 +3,31 @@ classdef ImagesSource < FrameSource
     %   Detailed explanation goes here
     
     properties
-        dir
         files
+        index
+        
+        skip
         
         useUndistort
         camParams
     end
     
     methods
-        function obj = ImagesSource(directory, camParams)
+        function obj = ImagesSource(directory, skip, camParams)
             files = dir(directory);
             
             obj.files = {};
-            obj.dir = directory;
+            obj.index = 1;
+            obj.skip = skip;
+            
+            
             i = 1;
             c = 1;
             while i < length(files);
                 file = files(i).name;
                 if file(1) == '.'
                 else
-                    obj.files{c} = file;
+                    obj.files{c} = fullfile(directory, file);
                     c = c + 1;
                 end
                 i = i + 1;
@@ -39,9 +44,9 @@ classdef ImagesSource < FrameSource
         end
         
         function img = readImage(this)
-            f = fullfile(this.dir, this.files{1});
-            this.files(:, 1) = [];
-
+            f = this.files{this.index};
+            this.index = this.index + this.skip;
+            
             img = imread(f);
             if ndims(img) > 2
                 img = rgb2gray(img);

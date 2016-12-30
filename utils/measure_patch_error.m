@@ -1,36 +1,36 @@
-%{ 
 % Use squared error
+%{
 function [ err ] = measure_patch_error(patchA, patchB)
-    if (size(patchA) ~= size(patchB) || ...
-        (size(patchA,1) == 0 || size(patchA,2) == 0) ||
-        (size(patchA,1) == 0 || size(patchA,2) == 0) )
+    if ((size(patchA, 1) ~= size(patchB,1)) || ...
+        (size(patchA, 2) ~= size(patchB,2)) || ...            
+        (size(patchA,1) == 0 || size(patchA,2) == 0))
         err = 1;
         return;
     else
-        a = patchA(:);
-        b = patchB(:);
-        
-        diff = double(a - b) / 255;
-        
-        err = sum(diff.^2) / length(diff);
+        [M, N] = size(patchA);
+        diff = double(patchA) - double(patchB);
+        %err = sum(sum(diff) .* diff)) / (M * N);        
+        % Divide by 255^2 to get the error from 0-1
+        err = sum(sum(diff .* diff)) / (M * N * 255 * 255);
+        return;
     end
 end
 %}
 
-
 % Use correlation
+%%{
 function [ err ] = measure_patch_error(patchA, patchB)
     if (size(patchA) ~= size(patchB))
         err = 1;
         return;
     else
-        a = int16(patchA);
-        b = int16(patchB);
+        a = double(patchA);
+        b = double(patchB);
 
-        err = abs(corr2(a, b));
-        err = 1 - err;
-        if err < 0 || isnan(err) % Some crazy value, like -Inf
-            err = 0;
+        err = 1 - max(corr2(a, b),0);
+        if err > 1 || err < 0 || isnan(err) % Some crazy value, like -Inf, Inf, NaN
+            err = 1;
         end
 
 end
+%}

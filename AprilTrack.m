@@ -6,35 +6,35 @@ classdef AprilTrack < TagSource
         % A cell array of motion models
         motionModels 
         
-        params
+        tagParams
     end
     
     methods
-        function obj = AprilTrack(params)
+        function obj = AprilTrack(tagParams)
             obj.motionModels = {};
             
-            obj.params = params;
+            obj.tagParams = tagParams;
             
             % Pre-calculate the projection coordinates                        
-            coordinates = zeros([params.patchSize 2]);
+            coordinates = zeros([tagParams.patchSize 2]);
             
-            for i=1:params.patchSize(2)
-                for j=1:params.patchSize(1)
-                    idx = [i / params.patchSize(2) - 0.5; ...
-                           j / params.patchSize(1) - 0.5];
+            for i=1:tagParams.patchSize(2)
+                for j=1:tagParams.patchSize(1)
+                    idx = [i / tagParams.patchSize(2) - 0.5; ...
+                           j / tagParams.patchSize(1) - 0.5];
 
                     coordinates(j, i, :) = idx;
                 end
             end
             
-            obj.params.coords = reshape(permute(coordinates, [3, 2, 1]), ...
-                                        2, params.patchSize(2) * params.patchSize(1));
-            obj.params.coords = [obj.params.coords; ones([1 size(obj.params.coords, 2)])];
+            obj.tagParams.coords = reshape(permute(coordinates, [3, 2, 1]), ...
+                                        2, tagParams.patchSize(2) * tagParams.patchSize(1));
+            obj.tagParams.coords = [obj.tagParams.coords; ones([1 size(obj.tagParams.coords, 2)])];
         end
         
         function addMotionModel(this, mm)
-            mm.setTagParams(this.params);
             this.motionModels{length(this.motionModels) + 1} = mm;
+            mm.setTagParams(this.tagParams);
         end
         
         function tags = process(this, img, detector_tags)
@@ -53,9 +53,9 @@ classdef AprilTrack < TagSource
                 tags = [tags mm.process(img, tagMap)];
             end
         end
-        function debug(this, fig1, fig2, fig3)
+        function debug(this, fig1, fig2, fig3, fig4)
             if length(this.motionModels) > 0
-                this.motionModels{1}.debug(fig1, fig2, fig3);
+                this.motionModels{1}.debug(fig1, fig2, fig3, fig4);
             end
         end
     end

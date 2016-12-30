@@ -7,12 +7,21 @@ function [ M ] = algorithm(tracker, detector, images, record)
     fig2 = sfigure(2);
     fig3 = sfigure(3);
     fig4 = sfigure(4);
+    fig5 = sfigure(5);
     
     figure(1);
     
     disp('Entering main loop');
     
+    counter = 1;
+    
     while images.hasImage()
+        
+        counter = counter + 1;
+        if mod(counter, 10) == 0
+            clc;
+        end
+        
         fprintf('------------------------------\n');      
         fprintf(':: Reading image\n'); 
         tic();
@@ -30,6 +39,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
         clf(fig2);
         clf(fig3);
         clf(fig4);
+        clf(fig5);
         
         fprintf('// Took %f\n', toc());
         fprintf(':: Displaying result\n');
@@ -42,7 +52,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
         
         % project the tags, will be stored in the
         % tags array
-        tags = project_tags(tracker.params.K, tags);
+        tags = project_tags(tracker.tagParams.K, tags);
         
         %drawTags(detector_tags, 'symbol', 'x');
         %drawTags(reproj_tags, 'symbol', 'o');
@@ -54,7 +64,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
         fprintf(':: Displaying debug stuff\n');
         tic();
 
-        tracker.debug(fig2, fig3, fig4);
+        tracker.debug(fig2, fig3, fig4, fig5);
         sfigure(1);
 
         fprintf('// Took %f\n', toc());
@@ -72,7 +82,6 @@ function [ M ] = algorithm(tracker, detector, images, record)
 end
 
 function drawTags(tags, varargin)
-    disp('foo');
     for i=1:length(tags)
         drawTag(tags{i}, varargin);
     end
@@ -80,7 +89,7 @@ end
 
 % Draws a (projected!) tag
 function drawTag(tag, vars)
-    symbol = 'x';
+    symbol = '.-';
     for i=1:length(vars)
         if strcmp(vars{i},'symbol')
             symbol = vars{i + 1};
