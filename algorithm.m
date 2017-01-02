@@ -1,5 +1,8 @@
-function [ M ] = algorithm(tracker, detector, images, record)
-    M = [];
+function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, record)
+    imgs = [];
+    corners = [];
+    pos = [];
+    rot = [];
     
     disp('Initializing figures');
     
@@ -13,7 +16,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
     
     disp('Entering main loop');
     
-    counter = 1;
+    counter = 0;
     
     while images.hasImage()
         
@@ -54,6 +57,9 @@ function [ M ] = algorithm(tracker, detector, images, record)
         % tags array
         tags = project_tags(tracker.tagParams.K, tags);
         
+        pos = [pos; tags{1}.state'];
+        corners = [corners; reshape(tags{1}.corners', [1, 8])];
+        
         %drawTags(detector_tags, 'symbol', 'x');
         %drawTags(reproj_tags, 'symbol', 'o');
         drawTags(tags);
@@ -74,7 +80,7 @@ function [ M ] = algorithm(tracker, detector, images, record)
             tic();
             fprintf('Getting frame');
 
-            M = [ M getframe(fig1) ];
+            imgs = [ imgs getframe(fig1) ];
 
             disp('-- '), disp(toc());
         end

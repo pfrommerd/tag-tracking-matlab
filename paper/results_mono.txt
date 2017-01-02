@@ -1,0 +1,1 @@
+Average Error (Including lost tag) = 21.976. Without lost tag = 13.433

@@ -1,5 +1,5 @@
 function [tracker, detector, frames] = test_video_config()
-    frames = ImagesSource('../data/test/images');
+    frames = ImagesSource('../data/test/images', 1);
 
     % Image parameters
     K = [1002.6   0           540.9;
@@ -18,11 +18,11 @@ function [tracker, detector, frames] = test_video_config()
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
-    mmParams(1).num_particles = 3000;
+    mmParams(1).num_particles = 6000;
     mmParams(1).process_noise = [0.01 0.01 0.01 ...
-                                 0.04 0.04 0.04 ...
+                                 0.05 0.05 0.05 ...
                                  0.02 0.02 0.02 ...
-                                 0 0 0];
+                                 0.00 0.00 0.00];
 
     % noise = 1 / (k + alpha * w) * process_noise * randn
     % Allows for particles of higher/lower weight to have
@@ -36,7 +36,7 @@ function [tracker, detector, frames] = test_video_config()
     % where weight = e^(-lambda * measurement)
     mmParams(1).lambda = 9;
 
-    model = MotionModel(mmParams, @tag_transform);
+    model = MotionModel(mmParams, @transform_tag);
 
     model.loadTags('../data/test/tags.txt');
     

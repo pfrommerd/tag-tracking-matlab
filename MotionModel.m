@@ -195,8 +195,9 @@ classdef MotionModel < handle
             W = this.transformMeasurements(Z);
             % this.measurements is really just the transformed weights
             
-            % Update the old weights
-            this.weights = this.weights .* W;
+            % Update the old weights. We don't need to multiply as we just
+            % resampled
+            this.weights = W;
             
             % Finally, normalize the weights again
             weightSum = sum(this.weights);
@@ -268,6 +269,7 @@ classdef MotionModel < handle
         % Converts measurements to weights
         function W = transformMeasurements(this, Z) 
             W = exp(-this.params.lambda * Z);
+            %W = this.params.lambda * Z;
         end
 
         function tags = transformTags(this, x, detectedTagMap)

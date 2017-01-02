@@ -23,7 +23,7 @@ classdef ImagesSource < FrameSource
             
             i = 1;
             c = 1;
-            while i < length(files);
+            while i <= length(files);
                 file = files(i).name;
                 if file(1) == '.'
                 else
@@ -40,11 +40,13 @@ classdef ImagesSource < FrameSource
         end
         
         function hasImage = hasImage(this)
-            hasImage = (length(this.files) > 0);
+            hasImage = (length(this.files) >= this.index);
         end
         
         function img = readImage(this)
             f = this.files{this.index};
+            disp('Reading from:');
+            disp(f);
             this.index = this.index + this.skip;
             
             img = imread(f);
