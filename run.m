@@ -1,8 +1,8 @@
-function [ imgs, corners, pos, rot ] = run(config, gt, shouldRecord)
+function [ imgs, corners, pos, rot ] = run(config, shouldRecord)
     tracker = [];
     detector = [];
     frames = [];
-    imgs = [];
+    imgs = {};
     corners = [];
     pos = [];
     rot = [];
@@ -24,8 +24,8 @@ function [ imgs, corners, pos, rot ] = run(config, gt, shouldRecord)
     end
     
     if (exist('shouldRecord', 'var') && shouldRecord)
-        [imgs, corners, pos, rot] = algorithm(tracker, detector, frames, gt, true);
+        [imgs, corners, pos, rot] = algorithm(tracker, detector, frames, true);
     else
-        algorithm(tracker, detector, frames, false);
+        [imgs, corners, pos, rot] = algorithm(tracker, detector, frames, false);
     end
 end

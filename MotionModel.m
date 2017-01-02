@@ -124,7 +124,8 @@ classdef MotionModel < handle
 
                     H = homography_solve(pin, tag.corners);
                     % Scale to get the border as well + right units
-                    s = this.modelledTags{i}.size + this.modelledTags{i}.border;
+                    s = (this.modelledTags{i}.size + this.modelledTags{i}.border) / 2;
+                    
                     S = [s(1) 0 0; 0 s(2) 0; 0 0 1];
                     
                     tag.homography = H * S;
@@ -325,7 +326,7 @@ classdef MotionModel < handle
         end
         
         
-        function debug(this, fig1, fig2, fig3, fig4)
+        function debug(this, img, fig1, fig2, fig3, fig4, fig5)
             sfigure(fig1);
             colormap(gray(255));
             
@@ -374,6 +375,29 @@ classdef MotionModel < handle
             sfigure(fig4);
             scatter3(gen_particles(1, :), gen_particles(2, :), ...
                      gen_m, 5, gen_m);
+                 
+            sfigure(fig5);
+            colormap(gray(255));
+
+            n = round(sqrt(length(this.modelledTags))) + 1;
+            for i=1:length(this.modelledTags)
+                t = this.modelledTags{i};
+                
+                w = this.visibleTags(i);
+                if w > 0
+                    % Transform the state
+                    t.state = this.transform(t.state, this.x);
+                    t.homography = homography_from_state(this.tagParams.K, t);
+                    
+                    p = extract_patch(this.tagParams.patchSize, ...
+                                      this.tagParams.coords, ...
+                                      img, t);
+                    
+                    h = subplot(n, n, i);
+                    image(p, 'Parent', h);
+                    title(t.id);
+                end
+            end
         end        
     end
 end

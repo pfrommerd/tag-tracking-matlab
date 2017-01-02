@@ -6,7 +6,7 @@ function [ H ] = homography_from_state(K, tag)
     % Create the homography
     
     % Project the coords
-    s = tag.size + tag.border;
+    s = (tag.size + tag.border) / 2;
     S = [s(1) 0 0; ...
          0 s(2) 0; ...
          0 0    1];

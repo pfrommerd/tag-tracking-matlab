@@ -20,9 +20,8 @@ classdef AprilTrack < TagSource
             
             for i=1:tagParams.patchSize(2)
                 for j=1:tagParams.patchSize(1)
-                    idx = [i / tagParams.patchSize(2) - 0.5; ...
-                           j / tagParams.patchSize(1) - 0.5];
-
+                    idx = 2* [i / tagParams.patchSize(2) - 0.5; ...
+                              j / tagParams.patchSize(1) - 0.5];
                     coordinates(j, i, :) = idx;
                 end
             end
@@ -53,9 +52,9 @@ classdef AprilTrack < TagSource
                 tags = [tags mm.process(img, tagMap)];
             end
         end
-        function debug(this, fig1, fig2, fig3, fig4)
+        function debug(this, img, fig1, fig2, fig3, fig4, fig5)
             if length(this.motionModels) > 0
-                this.motionModels{1}.debug(fig1, fig2, fig3, fig4);
+                this.motionModels{1}.debug(img, fig1, fig2, fig3, fig4, fig5);
             end
         end
     end

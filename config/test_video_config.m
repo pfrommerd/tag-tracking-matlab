@@ -21,8 +21,8 @@ function [tracker, detector, frames] = test_video_config()
     mmParams(1).num_particles = 6000;
     mmParams(1).process_noise = [0.01 0.01 0.01 ...
                                  0.05 0.05 0.05 ...
-                                 0.02 0.02 0.02 ...
-                                 0.00 0.00 0.00];
+                                 0.01 0.01 0.01 ...
+                                 0.01 0.01 0.01];
 
     % noise = 1 / (k + alpha * w) * process_noise * randn
     % Allows for particles of higher/lower weight to have
@@ -34,7 +34,7 @@ function [tracker, detector, frames] = test_video_config()
 
     % For measurement error --> weight conversion
     % where weight = e^(-lambda * measurement)
-    mmParams(1).lambda = 9;
+    mmParams(1).lambda = 10;
 
     model = MotionModel(mmParams, @transform_tag);
 

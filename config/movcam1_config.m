@@ -18,7 +18,7 @@ function [tracker, detector, frames] = movcam1_config(skip_rate)
     tracker = AprilTrack(trackParams);
 
     % Add a motion model
-    mmParams(1).err_discard_threshold = 1;
+    mmParams(1).err_discard_threshold = 1.1;
     mmParams(1).num_particles = 3000;
     mmParams(1).process_noise = [0.01 0.01 0.01 ...
                                  0.01 0.01 0.01 ...
@@ -33,8 +33,8 @@ function [tracker, detector, frames] = movcam1_config(skip_rate)
 
     model.loadTags('../data/movcam_tags.txt');
     
-    initial = [-0.424; -0.7353; 3.4589; ...
-               0.9791; 0.1296; -0.1559; -0.0135; ...
+    initial = [-0.6899; -0.1881; -3.4893; ...
+               0.9791; -0.1296; 0.1559; 0.0135; ...
                0; 0; 0;  0; 0; 0];
     
     model.initializeParticlesTo(initial);

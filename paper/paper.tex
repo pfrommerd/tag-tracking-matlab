@@ -3,7 +3,6 @@
 \usepackage{graphicx}
 \usepackage{amsmath,amsfonts,amssymb}
 
-
 \graphicspath{ {figures/} }
 
 \renewcommand{\vec}[1]{\boldsymbol{#1}}
@@ -125,50 +124,141 @@ P(x_p,y_p| \vec{H}, I ) = I(\vec{H} * \begin{bmatrix} x_p & y_p & 1\end{bmatrix}
 where $x_p$ and $y_p$ are between $-1$ and $1$ and $\vec{H}$ is a 3x3 matrix (a homography) mapping from $(x_p, y_p, 1)$ to $(\lambda x, \lambda y, \lambda)$ which incorporates the pose of an AprilTag relative to the camera. 
 
 
-This allows for the evaluation of candidate particles by the measuring the similarity between the particle's patch $P_{par}(x_p,y_p|\vec{H}_{par},I)$ in the current image and the patch from the AprilTag's last successful detection, $P_{ref}(x_p,y_p|\vec{H}_{ref},I)$. Here, $H_{par}$ can be calculated with
+This allows for the evaluation of candidate particles by the measuring the similarity between the particle's patch $P^i(x_p,y_p|\vec{H}^i,I)$ in the current image and the patch from the AprilTag's last successful detection, $P_{ref}(x_p,y_p|\vec{H}_{ref},I)$. Here, $H^i$ can be calculated with
 
 \begin{equation} \label{eq:particle_homography}
-\vec{H}_{par} = \begin{bmatrix}
-		\widehat{\vec{q}} & \vec{r}
+\vec{H}^i = \begin{bmatrix}
+		\widehat{\vec{q}^i} & \vec{r}^i
+	\end{bmatrix} \begin{bmatrix}
+		\tau/2 & 0 & 0 \\
+		0 & \tau/2 & 0 \\
+		0 & 0 & 0 \\
+		0 & 0 & 1
 	\end{bmatrix}
 \end{equation}
 
-where $\widehat{\vec{q}}$ is the rotation matrix representation of particle's rotation quaternion and $\vec{r}$ is the particle's translation. The homography for the AprilTag detection uses the homography supplied from the AprilTag library, which is computed using the Direct Linear Transform algorithm [cite]. 
 
 
-To compare the patches efficiently, $P_{par}$ and $P_{ref}$ are evaluated at a regular grid from $(-1, -1)$ to $(1, 1)$ at intervals of $2 / \rho$. This results in two $\rho \times \rho$ matrices $\vec{M}_{par}$ and $\vec{M}_{ref}$. To compare the patches, the error between the two  matrices is calculated using the correlation coefficient between the individual elements of the matrices.
+where $\widehat{\vec{q}}$ is the rotation matrix representation of particle's rotation quaternion, $\vec{r}$ is the particle's translation, and $\tau$ is the tag's edge length. The patch for the detected AprilTag uses the homography $\vec{H}_{ref}$ supplied by the AprilTag library, which computes the homography using the Direct Linear Transform algorithm [cite]. 
+
+
+To compare the patches efficiently, $P^i$ and $P_{ref}$ are evaluated at a regular grid from $(-1, -1)$ to $(1, 1)$ at intervals of $2 / \rho$. This results in two $\rho \times \rho$ matrices $\vec{M}^i$ and $\vec{M}_{ref}$. To compare the patches, the error between the two  matrices is calculated using the correlation coefficient between the individual elements of the matrices.
 
 \begin{equation}
-	\epsilon(A, B) = 1 - \frac{\sum_{i=1}^{\rho} \sum_{j=1}^{\rho} (\vec{A}_{ij} - \mu_{\vec{A}})(\vec{B}_{ij} - \mu_{\vec{B}}) }{2\sigma_{A} \sigma_{B}}
+	\epsilon(\vec{A}, \vec{B}) = \frac{1}{2} - \frac{\sum_{i=1}^{\rho} \sum_{j=1}^{\rho} (\vec{A}_{ij} - \mu_{\vec{A}})(\vec{B}_{ij} - \mu_{\vec{B}}) }{2\sigma_{A} \sigma_{B}}
 \end{equation}
 
 where $\vec{A}$ and $\vec{B}$ are the matrix approximations of two patches, $\sigma_{\vec{A}}$ and $\sigma_{\vec{B}}$ are the standard deviations of the respective matrices' elements and $\mu_{\vec{A}}$ and $\mu_{\vec{B}}$ are their means. By normalizing by mean and standard deviation, using correlation as a similarity metric (as opposed to the sum of the absolute difference or squared difference) ensures lighting invariance for comparing patches containing the same marker under different illuminations.
 
 
-As in [cite] the measured error $\epsilon(\vec{M}_{par}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}_t)$ to update the weights and select the best particle with
+As in [cite] the patch error $\epsilon(\vec{M}^{i}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}_t)$ to update the weights and select the best particle with
+
 
 \begin{equation}
-	p(\vec{z}_t|\vec{x}_t) = exp(-\gamma \epsilon(\vec{M}_{par}, \vec{M}_{ref}))
+	p(\vec{z}_t|\vec{x}^i_t) = exp(-\gamma \epsilon(\vec{M}^i, \vec{M}_{ref}))
 \end{equation}
 
 where the parameter $\gamma$ allows for more or less selective resampling.
 
+
+
+\begin{figure}[b]
+	\centering
+	\includegraphics[width=7.5cm,height=5cm]{tracked_tag}
+	\caption{A blurred tag being tracked. The red border indicates that the tag was not detected with the AprilTag detector.}
+\end{figure}
+
+\begin{figure*}[t]
+	\label{fig:error}
+	\includegraphics[width=\textwidth,height=8cm]{Average_Error}
+	\caption{The average corner error between the hand-marked tag location and the tracked location. Much of the error from frames 0-200 comes from discrepancy between the tracker and the ground truth on the boundaries of blurred tags. At around frame 200, the tracker loses the tag due to a sudden rotation but is able to recover without needing a hard reset.}
+\end{figure*}
+
+\begin{figure}[b]
+	\centering
+	\includegraphics[width=7.5cm,height=5cm]{Particles2}
+	\caption{The distribution of particles and their weights with respect to the X,Y position of the particles.}
+\end{figure}
+
+\begin{figure}[b]
+	\centering
+	\includegraphics[width=7.5cm,height=5cm]{RefPatches}
+	\caption{The reference patches of various tags (by ID) in a multi-Tag tracking scenario.}
+\end{figure}
+
 \subsection{Multi-Tag Scenarios}
 
-To adapt this method to multi-tag scenarios, several extra parameters were introduced. In order to jointly track multiple tags, it is assumed that the relative poses of the tags are known. For each tag $T_k$ with ID $k$, the location $\vec{x}^{tag}_{k}$ and orientation $\vec{q}^{tag}_{k}$ are expressed such that
+To adapt this method to multi-tag scenarios, several extra parameters were introduced. In order to jointly track multiple tags, it is assumed that the relative poses of the tags are known. For each tag $T_k$ with ID $k$, the location $\vec{x}_{k}$ and orientation quaternion $\vec{g}_{k}$ are expressed such that
 
 \begin{equation}
-	\vec{X}_w = \widehat{\vec{q}^{tag}_k} \vec{X}_t + \vec{x}^{tag}_k
+	\vec{X}_c = \widehat{\vec{q}^i} (\widehat{\vec{g}_k} \vec{X}_t + \vec{x}_k) + \vec{r}^i
 \end{equation}
-where $\vec{X}_t$ is a coordinate relative to the tag's reference frame and $\vec{W}_w$ is relative to the world reference frame. In the simple case of jointly moving tags, the $\vec{H}_{par}$ from equation \ref{eq:particle_homography} can be rewritten as
+where $\vec{X}_t$ is a coordinate relative to the tag's reference frame, $\vec{X}_c$ is relative to the camera reference frame, and $\vec{q}^i$ and $\vec{r}^i$ are the position and orientation of particle $\vec{x}^i_t$. In the simple case of jointly moving tags, the $\vec{H}^i$ from equation \ref{eq:particle_homography} can then be rewritten as
+
 
 \begin{equation}
-	\vec{H}_{k} =
+	\vec{H}^i_{k} =
 	\begin{bmatrix}
-		\widehat{\vec{q}} * \widehat{\vec{q^{tag}} 
+		\widehat{\vec{q}^i \vec{g_k}} & \widehat{\vec{q}} \vec{x_k} + \vec{r}^i
+	\end{bmatrix}\begin{bmatrix}
+		\tau_k/2 & 0 & 0 \\
+		0 & \tau_k/2 & 0 \\
+		0 & 0 & 0 \\
+		0 & 0 & 1
 	\end{bmatrix}
 \end{equation}
 
-In the ego-motion scenario, each particle's rotation and translation can be taken as the camera's rotation and translation. 
+where $\vec{H}^i_k$ represents the homography for particle $i$ and tag $k$ and $\tau_k$ is the edge length of tag $k$.
+
+
+In the ego-motion scenario, each particle's rotation and translation can be taken to be the camera's rotation and  translation such that
+
+\begin{equation}
+	\widehat{\vec{q}^i}\vec{X}_c + \vec{r}^i = \widehat{\vec{g}_k} \vec{X}_t + \vec{x}_k
+\end{equation}
+
+resulting in the homography $\vec{H}^i_k$ and the corresponding patch approximation $\vec{M}^i_k$ where
+
+\begin{equation}
+	\vec{H}^i_k = \begin{bmatrix}
+		\widehat{\vec{q}^i}^{-1} \widehat{\vec{g}_k} & \widehat{\vec{q}^i}^{-1} (\vec{x}_k - \vec{r}^i)
+	\end{bmatrix} \begin{bmatrix}
+		\tau_k/2 & 0 & 0 \\
+		0 & \tau_k/2 & 0 \\
+		0 & 0 & 0 \\
+		0 & 0 & 1
+	\end{bmatrix}
+\end{equation}
+
+
+In both ego-motion and joint tag motion, the observation likelihood $p(\vec{z}_t|\vec{x}_{t})$ then becomes
+
+\begin{equation}
+	p(\vec{z}_t|\vec{x}^i_{t}) = exp(\sum^{K}_{k=1} -\gamma \epsilon(\vec{M}^i_k, \vec{M}_{k, ref}))
+\end{equation}
+
+where $K$ is the number of tags being tracked and $\vec{M}_{k,ref}$ is the reference patch approximation for tag $k$ from the last successful detection.
+
+\section{Results and Discussion}
+
+The AprilTrack algorithm was primarily evluated on a manually-labeled single-tag sequence with a moving tag. The algorithm was also run on an ego-motion multi-tag sequence which will be qualitatively discussed.
+
+\footnote{Videos of the sequences and the tracker's performance are available online at https://www.youtube.com/watch?v=BmZLKFBkcxU, https://www.youtube.com/watch?v=ebWaxO7JhKE, and }
+
+
+The specific implementation of the AprilTrack algorithm used in this experiment was written in MATLAB. For both scenarios, the parameters $\gamma = 10$, $\rho=32$ were used. $\tau$ was $0.1936$ m for all tags, slightly larger than the actual tag size of $0.1635$ m to include some of the whitespace around the tag. In the single-tag scenario, the standard deviation $\vec{\sigma}$  of the gaussian noise used in the state transition distribution $p(\vec{x}_t|\vec{x}^i_{t-1})$ was $0.01$ for the $\vec{r}$ component, $0.05$ for $\vec{q}$, $0.02$ for $\dot{\vec{r}}$, and $0$ for $\omega$.
+
+
+When evaluated on the single-tag sequence, the algorithm ran with $N=6000$ at around $0.5$ fps on an i7 Haswell Intel CPU. In experiments with fewer particles, it was found that the algorithm could track a tag well with as few as $1000$ particles with around $5$ fps. With a more optimized C++ implementation, the framerate could likely be brought up to $10-15$ fps, making the algorithm (run with less agressive parameters) a possible candidate for real time scenarios. Currently, the MATLAB implementation is intended for offline post-processing of a sequence.
+
+
+The pixel corner error hovers at around 10 pixels for most of the sequence. The tracker loses the tag momentarily during a quick twist at around frame 200 but is able to recover rapidly without any manual intervention. Much of the error observed throughout the sequence is the result of disagreement on the boundary of a blurred tag rather than a systematic issue with the tracker itself.
+
+When running with a multi-tag configuration, the tracker is able to make use of the additional information to more accurately track the camera's location than in a single-tag scenario. The main challenge for running the algorithm with multiple tags was not successfully tracking the tags---the algorithm was able to do that with half the particles of the single-tag scenario. Rather, the majority of the reprojection error arises from error in the relative tag positions.
+
+\section{Conclusion}
+
+This paper has presented the AprilTrack algorithm augmenting the standard AprilTag detection algorithm with a novel tracker capable of tracking the tags in 6 DOF by using homographies to evaluate candidate particles. Experimental results show that the tracker is capable of accurately tracking both single tags and consolidating information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
+
 
 \end{document}

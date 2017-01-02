@@ -1,5 +1,5 @@
 function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, record)
-    imgs = [];
+    imgs = {};
     corners = [];
     pos = [];
     rot = [];
@@ -11,6 +11,7 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
     fig3 = sfigure(3);
     fig4 = sfigure(4);
     fig5 = sfigure(5);
+    fig6 = sfigure(6);
     
     figure(1);
     
@@ -23,6 +24,9 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
         counter = counter + 1;
         if mod(counter, 10) == 0
             clc;
+        end
+        if (counter == 1000)
+            return;
         end
         
         fprintf('------------------------------\n');      
@@ -43,6 +47,7 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
         clf(fig3);
         clf(fig4);
         clf(fig5);
+        clf(fig6);
         
         fprintf('// Took %f\n', toc());
         fprintf(':: Displaying result\n');
@@ -70,7 +75,7 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
         fprintf(':: Displaying debug stuff\n');
         tic();
 
-        tracker.debug(fig2, fig3, fig4, fig5);
+        tracker.debug(img, fig2, fig3, fig4, fig5, fig6);
         sfigure(1);
 
         fprintf('// Took %f\n', toc());
@@ -80,7 +85,7 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
             tic();
             fprintf('Getting frame');
 
-            imgs = [ imgs getframe(fig1) ];
+            imgs{counter} = getframe(fig1);
 
             disp('-- '), disp(toc());
         end
