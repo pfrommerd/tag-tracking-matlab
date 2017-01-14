@@ -17,7 +17,7 @@
 
 \begin{abstract}
 
-	The AprilTrack algorithm proposed in this paper seeks to bridge two existing fields of research in computer vision literature: fiducial detection and monocular object tracking. With a rise in the popularity of fiducials, or artificial markers, as a source of ground-truth position data for mobile robots, there has been a considerable interest in designing robust and blur-resistant fiducials. Rather than devising a new fiducial, This paper attempts to improve on existing fiducials such as the popular AprilTag marker by augmenting fiducial detection algorithms with a particle-filter based monocular object tracker which reliably tracks a fiducial's position and orientation in six degrees of freedom, allowing for tag-based localization in situations where still frame based methods would be unable to do so. This novel particle-filter based algorithm is evaluated on several datasets involving both ego-motion and tag-based-motion and is compared to standalone tag detection algorithms and ground-truth tag position data.
+	The AprilTrack algorithm proposed in this paper seeks to bridge two existing fields of research in computer vision literature: fiducial detection and monocular object tracking. With a rise in the popularity of fiducials, or artificial markers, as a source of ground-truth position data for mobile robots, there has been considerable interest in designing robust and blur-resistant fiducials. Rather than devising a new fiducial, this paper attempts to improve on existing fiducials such as the popular AprilTag marker by augmenting fiducial detection algorithms with a particle-filter based monocular object tracker which reliably tracks a fiducial's position and orientation in six degrees of freedom, allowing for tag-based localization in situations where still frame based methods would be unable to do so. This novel particle-filter based algorithm is evaluated on several datasets involving both ego-motion and tag-based-motion and is compared to ground-truth tag position data.
 	
 \end{abstract}
 
@@ -67,7 +67,7 @@ The particle filter used for the AprilTrack algorithm is a Bayesian sequential i
 \end{bmatrix}
 \end{equation}
 
-where $\vec{r}$ is the three dimensional position of the tracked object, $\dot{\vec{q}}$ is the three dimensional velocity, $\vec{q}$ is a four dimensional unit quaternion containing the pose of the tracked object, and $\vec{\omega}$ is an angular velocity with components $\omega_x$, $\omega_y$, and $\omega_z$. We use $\vec{y}_k$ to denote the measurement (appearance) of the tag a particular time $t$. 
+where $\vec{r}$ is the three dimensional position of the tracked object, $\dot{\vec{q}}$ is the three dimensional velocity, $\vec{q}$ is a four dimensional unit quaternion containing the pose of the tracked object, and $\vec{\omega}$ is an angular velocity with components $\omega_x$, $\omega_y$, and $\omega_z$. We use $\vec{z}_k$ to denote the measurement (appearance) of the tag a particular time $t$. 
 
 The predicting distribution can be formulated in a Bayesian setting as the computation of the distribution $p(\vec{x}_t|\vec{z}_{t-1})$ from the prior distribution $p(\vec{x}_{t-1}|\vec{z}_{1:t-1})$:
 
@@ -91,7 +91,7 @@ In this regard, particle filters attempt to approximate the posterior distributi
 	w \propto p(\vec{z}_t|\vec{x}^i_t)
 \end{equation}
 
-After selecting the particle with the highest weight as the most likely candidate, the final resampling step simply consists of drawing a new set of $N$ particles with equal weights (normalized to one) from the distribution $p(\vec{x}_t|\vec{y}_{1:t})$ where $p(\vec{x}_t|\vec{y}_{1:t})$ is approximated by the set of weighted particles.
+After selecting the particle with the highest weight as the most likely candidate, the final resampling step simply consists of drawing a new set of $N$ particles with equal weights (normalized to one) from the distribution $p(\vec{x}_t|\vec{z}_{1:t})$ where $p(\vec{x}_t|\vec{z}_{1:t})$ is approximated by the set of weighted particles.
 
 \begin{equation}
 	p(\vec{x}_t|\vec{z}_{1:t}) \approx \sum_{i=1}^{N}{w^i_t\delta_{\vec{x}^i_t}}
@@ -151,17 +151,6 @@ To compare the patches efficiently, $P^i$ and $P_{ref}$ are evaluated at a regul
 where $\vec{A}$ and $\vec{B}$ are the matrix approximations of two patches, $\sigma_{\vec{A}}$ and $\sigma_{\vec{B}}$ are the standard deviations of the respective matrices' elements and $\mu_{\vec{A}}$ and $\mu_{\vec{B}}$ are their means. By normalizing by mean and standard deviation, using correlation as a similarity metric (as opposed to the sum of the absolute difference or squared difference) ensures lighting invariance for comparing patches containing the same marker under different illuminations.
 
 
-As in [cite] the patch error $\epsilon(\vec{M}^{i}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}_t)$ to update the weights and select the best particle with
-
-
-\begin{equation}
-	p(\vec{z}_t|\vec{x}^i_t) = exp(-\gamma \epsilon(\vec{M}^i, \vec{M}_{ref}))
-\end{equation}
-
-where the parameter $\gamma$ allows for more or less selective resampling.
-
-
-
 \begin{figure}[b]
 	\centering
 	\includegraphics[width=7.5cm,height=5cm]{tracked_tag}
@@ -176,15 +165,26 @@ where the parameter $\gamma$ allows for more or less selective resampling.
 
 \begin{figure}[b]
 	\centering
-	\includegraphics[width=7.5cm,height=5cm]{Particles2}
+	\includegraphics[width=7cm,height=4.75cm]{Particles2}
 	\caption{The distribution of particles and their weights with respect to the X,Y position of the particles.}
 \end{figure}
 
 \begin{figure}[b]
 	\centering
-	\includegraphics[width=7.5cm,height=5cm]{RefPatches}
+	\includegraphics[width=7cm,height=4.75cm]{RefPatches}
 	\caption{The reference patches of various tags (by ID) in a multi-Tag tracking scenario.}
 \end{figure}
+
+As in [cite] the patch error $\epsilon(\vec{M}^{i}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}_t)$ to update the weights and select the best particle with
+
+
+\begin{equation}
+	p(\vec{z}_t|\vec{x}^i_t) = exp(-\gamma \epsilon(\vec{M}^i, \vec{M}_{ref}))
+\end{equation}
+
+where the parameter $\gamma$ allows for more or less selective resampling.
+
+
 
 \subsection{Multi-Tag Scenarios}
 

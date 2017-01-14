@@ -3,6 +3,7 @@ function [ H ] = homography_from_state(K, tag)
     R = quat_to_rotm(tag.state(4:7));
     T = tag.state(1:3);
     H = K * [R(:, 1:2) T];
+    %H = [R(:, 1:2) T];
     % Create the homography
     
     % Project the coords

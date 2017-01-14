@@ -121,7 +121,6 @@ classdef MotionModel < handle
                             tagSize(1), -tagSize(2); ...
                             tagSize(1),  tagSize(2);...
                            -tagSize(1),  tagSize(2)];                
-
                     H = homography_solve(pin, tag.corners);
                     % Scale to get the border as well + right units
                     s = (this.modelledTags{i}.size + this.modelledTags{i}.border) / 2;
@@ -217,7 +216,7 @@ classdef MotionModel < handle
             %%{
             [z, i] = max(this.weights);
             this.x = this.particles(:, i);
-            
+            this.x
             % Measure which tags we should get rid of
             this.removeOccludedTags(this.x, img);
 
@@ -314,10 +313,11 @@ classdef MotionModel < handle
                                       this.tagParams.coords, ...
                                       img, t);
                     
-                    %p
-                    %t.refPatch
                     err = measure_patch_error(p, t.refPatch);
-                    err
+                    
+                    % For error debugging
+                    % err
+                    
                     if err >= this.params.err_discard_threshold
                         this.visibleTags(i) = 0;
                     end

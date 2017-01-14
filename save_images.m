@@ -1,6 +1,6 @@
 function save_images(input, output_dir)
     for c=1:length(input)
-        img = input(c).cdata;
+        img = input{c}.cdata;
         file = sprintf('%s/%04d.png', output_dir, c);
         imwrite(img, file);
     end
