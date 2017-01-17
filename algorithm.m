@@ -1,8 +1,7 @@
-function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, record)
+function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
     imgs = {};
     corners = [];
-    pos = [];
-    rot = [];
+    poses = [];
     
     disp('Initializing figures');
     
@@ -62,8 +61,10 @@ function [ imgs, corners, pos, rot ] = algorithm(tracker, detector, images, reco
         % tags array
         tags = project_tags(tracker.tagParams.K, tags);
         
-        pos = [pos; tags{1}.state'];
-        corners = [corners; reshape(tags{1}.corners', [1, 8])];
+        if record && length(tags) > 0
+            poses = [poses; tags{1}.state'];
+            corners = [corners; reshape(tags{1}.corners', [1, 8])];
+        end
         
         %drawTags(detector_tags, 'symbol', 'x');
         %drawTags(reproj_tags, 'symbol', 'o');

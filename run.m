@@ -1,11 +1,10 @@
-function [ imgs, corners, pos, rot ] = run(config, shouldRecord)
+function [ imgs, corners, poses, rot ] = run(config, shouldRecord)
     tracker = [];
     detector = [];
     frames = [];
     imgs = {};
     corners = [];
-    pos = [];
-    rot = [];
+    poses = [];
     
     % The parameter argument represents the number of frames to skip
     % so zero means always stay on the first frame
@@ -24,8 +23,8 @@ function [ imgs, corners, pos, rot ] = run(config, shouldRecord)
     end
     
     if (exist('shouldRecord', 'var') && shouldRecord)
-        [imgs, corners, pos, rot] = algorithm(tracker, detector, frames, true);
+        [imgs, corners, poses] = algorithm(tracker, detector, frames, true);
     else
-        [imgs, corners, pos, rot] = algorithm(tracker, detector, frames, false);
+        [imgs, corners, poses] = algorithm(tracker, detector, frames, false);
     end
 end

@@ -19,18 +19,10 @@ function [tracker, detector, frames] = test_video_config()
     % Add a motion model
     mmParams(1).err_discard_threshold = 0.9;
     mmParams(1).num_particles = 6000;
-    mmParams(1).process_noise = [0.01 0.01 0.01 ...
-                                 0.05 0.05 0.05 ...
+    mmParams(1).process_noise = [0.005 0.005 0.005 ...
+                                 0.03 0.03 0.03 ...
                                  0.01 0.01 0.01 ...
-                                 0.01 0.01 0.01];
-
-    % noise = 1 / (k + alpha * w) * process_noise * randn
-    % Allows for particles of higher/lower weight to have
-    % more noise in the propagation step
-
-    % ATM, we resample after every pass, so don't bother...
-    mmParams(1).k = 1;
-    mmParams(1).alpha = 0;
+                                 0.03 0.03 0.03];
 
     % For measurement error --> weight conversion
     % where weight = e^(-lambda * measurement)
