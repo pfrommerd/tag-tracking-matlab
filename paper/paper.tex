@@ -1,18 +1,28 @@
-\documentclass[letterpaper, 10 pt, conference]{ieeeconf}
+\documentclass[letterpaper, 10 pt]{IEEEconf}
 
-\usepackage{cite}
+%\makeatletter
+%\let\NAT@parse\undefined
+%\makeatother
+
 \usepackage{graphicx}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{pgfplots}
+
+%\usepackage{natbib}
+%\usepackage{hyperref}
+%\usepackage{caption}
+%\usepackage{url}
 
 \pgfplotsset{compat=1.7}
 
 \graphicspath{ {figures/} }
 
-\renewcommand{\vec}[1]{\boldsymbol{#1}}
+\renewcommand{\vec}[1]{#1}
 
 \renewcommand{\eqref}[1]{\textup{{\normalfont(\ref{#1}}\normalfont)}}
 
+%\newcommand{\citep}[1]{\cite{#1}}
+%\newcommand{\url}[1]{#1}
 
 \title{\textbf{AprilTrack: A Particle-Filter based AprilTag Tracker}}
 \author{Daniel Pfrommer}
@@ -116,7 +126,11 @@ As the model $p(\vec{x}_t|\vec{x}_{t-1})$ is Markovian, the current measurement 
 \end{equation}
 
 
-As the particles are drawn from the proposal distribution $q(\vec{x})$, the sample weight $w^i$ must take into account any discrepancy between $p(\vec{x})$ and $q(\vec{x})$ so that $w^i_t \propto p(\vec{x}^i_{1:t}|\vec{z}_{1:t})/q(\vec{x}^i_{1:t}|\vec{z}_{1:t})$.
+As the particles are drawn from the proposal distribution $q(\vec{x})$, the sample weight $w^i$ must take into account any discrepancy between $p(\vec{x})$ and $q(\vec{x})$ so that $w^i_t \propto p(\vec{x}^i_{1:t}|\vec{z}_{1:t})/q(\vec{x}^i_{1:t}|\vec{z}_{1:t})$. From this observation we note that therefore:
+
+\begin{equation*}
+	w^i_{t} \propto \frac{p(\vec{x}^i_{0:t}|\vec{z}_{1:t})}{q(\vec{x}^i_{0:t}|\vec{z}_{1:t}) }
+\end{equation*}
 
 In the simplified case of a Sequential Importance Resampling algorithm, the prediction and update equations derived from \eqref{eq:predict} and \eqref{eq:update} can, in the context of a SIR particle filter, be simplified to:
 
@@ -302,7 +316,7 @@ where $K$ is the number of tags being tracked and $\vec{M}_{k,ref}$ is the refer
 \section{Results and Discussion}
 
 The AprilTrack algorithm was primarily evluated on a manually-labeled single-tag sequence with a moving tag. The algorithm was also run on an ego-motion multi-tag sequence which will be qualitatively discussed.
-\footnote{Videos of the sequences and the tracker's performance are available online at https://www.youtube.com/watch?v=kV8z3st9rlk and https://www.youtube.com/watch?v= }
+\footnote{Videos of the sequences and the tracker's performance are available online at https://www.youtube.com/watch?v=kV8z3st9rlk and https://www.youtube.com/watch?v=F5cFTLBlJ1s }
 
 
 The specific implementation of the AprilTrack algorithm used in this experiment was written in MATLAB. For both scenarios, the parameters $\gamma = 10$, $\rho=32$ were used. $\tau$ was $0.1936$ m for all tags, slightly larger than the actual tag size of $0.1635$ m to include some of the whitespace around the tag. In the single-tag scenario, the standard deviation $\vec{\sigma}$  of the gaussian noise used in the state transition distribution $p(\vec{x}_t|\vec{x}^i_{t-1})$ was $0.01$ for the $\vec{r}$ component, $0.05$ for $\vec{q}$, $0.02$ for $\dot{\vec{r}}$, and $0$ for $\omega$.
@@ -319,7 +333,7 @@ When running with a multi-tag configuration, the tracker is able to make use of 
 
 This paper has presented the AprilTrack algorithm augmenting the standard AprilTag detection algorithm with a novel tracker capable of tracking the tags in 6 DOF by using homographies to evaluate candidate particles. Experimental results show that the tracker is capable of accurately tracking both single tags and consolidating information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
 
-\bibliographystyle{unsrt}
+\bibliographystyle{abbrv}
 \bibliography{paper_bib}{}
 
 \end{document}
