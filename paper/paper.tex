@@ -103,7 +103,7 @@ As the model $p(\vec{x}_t|\vec{x}_{t-1})$ is Markovian, the current measurement 
 \end{equation}
 
 
-\textbf{Particle Filters.}\footnote{A more in-depth discussion of particle filters can found in . This } In this regard, particle filters attempt to approximate the posterior distribution at time $t-1$, $p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1})$, using Monte-Carlo methods. A particle filter consists of a set of $N$ samples $\{ (\vec{x}^i_{t-1}, w^i_{t-1}) \}_{i=1}^N$ drawn from the proposal distribution $q(\vec{x}^i)$ and weighted so as to take into account any discrepancy between $q(\vec{x})$ and $p(\vec{x})$ in that $w^i_t \propto p(\vec{x}^i_{0:t}|\vec{z}_{1:t})/q(\vec{x}^i_{0:t}|\vec{z}_{1:t})$.
+\textbf{Particle Filters.}\footnote{A more in-depth discussion of particle filters can found in \citep{ParticleNotes}. Much of the notation used in \citep{ParticleNotes} is similar to that used here.} In this regard, particle filters attempt to approximate the posterior distribution at time $t-1$, $p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1})$, using Monte-Carlo methods. A particle filter consists of a set of $N$ samples $\{ (\vec{x}^i_{t-1}, w^i_{t-1}) \}_{i=1}^N$ drawn from the proposal distribution $q(\vec{x}^i)$ and weighted so as to take into account any discrepancy between $q(\vec{x})$ and $p(\vec{x})$ in that $w^i_t \propto p(\vec{x}^i_{0:t}|\vec{z}_{1:t})/q(\vec{x}^i_{0:t}|\vec{z}_{1:t})$.
 
 As with the optimal filtering scenario, the prior distribution (the distribution of particles at the current timestep before taking into account the measurement) is calculated in the propagation step. In a particle filter, this simply amounts to drawing a new set of particles based using
 
