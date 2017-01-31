@@ -1,28 +1,23 @@
-\documentclass[letterpaper, 10 pt]{IEEEconf}
+\documentclass[letterpaper, 10 pt, conference]{ieeeconf}
 
-%\makeatletter
-%\let\NAT@parse\undefined
-%\makeatother
+\makeatletter
+\let\NAT@parse\undefined
+\makeatother
 
 \usepackage{graphicx}
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{pgfplots}
 
-%\usepackage{natbib}
-%\usepackage{hyperref}
-%\usepackage{caption}
-%\usepackage{url}
+\usepackage{natbib}
+\usepackage{hyperref}
 
 \pgfplotsset{compat=1.7}
 
 \graphicspath{ {figures/} }
 
-\renewcommand{\vec}[1]{#1}
+\renewcommand{\vec}[1]{\boldsymbol{#1}}
 
 \renewcommand{\eqref}[1]{\textup{{\normalfont(\ref{#1}}\normalfont)}}
-
-%\newcommand{\citep}[1]{\cite{#1}}
-%\newcommand{\url}[1]{#1}
 
 \title{\textbf{AprilTrack: A Particle-Filter based AprilTag Tracker}}
 \author{Daniel Pfrommer}
@@ -41,13 +36,13 @@
 \section{Introduction}
 
 
-Visual tracking of fiducial markers (or simply fiducials) plays an important role in many robotics and computer vision related fields and applications, including augmented and virtual reality \cite{AugmentedReality}, visual odometry/SLAM \cite{TagSLAM}, and object tracking. However, as many of these applications involve the use of fiducials in structured indoors environments where illumination is often limited, long exposure times to compensate for the reduced lighting produce blurred images, especially when taken from a mobile platform such as a quadrotor or a handheld device.
+Visual tracking of fiducial markers (or simply fiducials) plays an important role in many robotics and computer vision related fields and applications, including augmented and virtual reality \citep{AugmentedReality}, visual odometry/SLAM \citep{TagSLAM}, and object tracking. However, as many of these applications involve the use of fiducials in structured indoors environments where illumination is often limited, long exposure times to compensate for the reduced lighting produce blurred images, especially when taken from a mobile platform such as a quadrotor or a handheld device.
 
 The focus of this work is primarily on providing better pose estimation for visual odometry datasets which use AprilTags placed to known locations to provide the ground truth pose data. As the pose estimation in this scenario can be done in a post-processing step after the data has been collected, the current implementation of AprilTrack is not designed to run in realtime. We intend to explore the use of AprilTrack in realtime scenarios in future research.
 
 \subsection{Previous Work}
 
- The majority of previous literature in fiducial detection has been focused single-frame fiducial detection \cite{RUNETag, BlurResilient, AprilTag}. A common assumption in these algorithms is that the image being processed shows little motion blur, an expectation which breaks down in empirical situations. For instance, the widely-used AprilTag marker \cite{AprilTag} and its successor, the AprilTag 2 \cite{AprilTag_2}, rely on strong gradients between the tag's background and the surrounding white border to detect the tag. As shown in figure \ref{fig:blurred_tag}, oftentimes such algorithms fail to detect tags that have been blurred, either missing them entirely or mistakenly discarding them when eliminating false positives through some encoded fiducial ID (for AprilTags this consists of a 6x6 binary grid in the center of the tag which is used to verify the validity of the detection).
+ The majority of previous literature in fiducial detection has been focused single-frame fiducial detection \citep{RUNETag, BlurResilient, AprilTag}. A common assumption in these algorithms is that the image being processed shows little motion blur, an expectation which breaks down in empirical situations. For instance, the widely-used AprilTag marker \citep{AprilTag} and its successor, the AprilTag 2 \citep{AprilTag_2}, rely on strong gradients between the tag's background and the surrounding white border to detect the tag. As shown in figure \ref{fig:blurred_tag}, oftentimes such algorithms fail to detect tags that have been blurred, either missing them entirely or mistakenly discarding them when eliminating false positives through some encoded fiducial ID (for AprilTags this consists of a 6x6 binary grid in the center of the tag which is used to verify the validity of the detection).
 
 \begin{figure}[b]
 	\centering
@@ -56,22 +51,22 @@ The focus of this work is primarily on providing better pose estimation for visu
 	\label{fig:blurred_tag}
 \end{figure}
 
-Previously, there has been interest in designing blur resilient fiducials. Meghshyam et al. \cite{BlurResilient} have developed ringed markers to ensure that a region of the tag will always be perpendicular to the blur direction. However, this approach, while resistent to linear blur, does not take into account more complex blurs (e.g resulting from the tag pivoting around the vertical axis). In addition, the increased resilience to blur comes at the cost of localization accuracy as only the center point of the ringed tag can be reliably determined \cite{BlurResilient}, whereas with other fiducials, such as the AprilTag \cite{AprilTag}, full pose estimation in 6 degrees of freedom (DOF) can be done based on just a single tag. Another significant disadvantage of the ringed marker from Meghshyam et al. is the limited number of tag ID's, as their proposed encoding method allows for a maximum of 4 distinct tags \cite{BlurResilient}.
+Previously, there has been interest in designing blur resilient fiducials. Meghshyam et al. \citep{BlurResilient} have developed ringed markers to ensure that a region of the tag will always be perpendicular to the blur direction. However, this approach, while resistent to linear blur, does not take into account more complex blurs (e.g resulting from the tag pivoting around the vertical axis). In addition, the increased resilience to blur comes at the cost of localization accuracy as only the center point of the ringed tag can be reliably determined \citep{BlurResilient}, whereas with other fiducials, such as the AprilTag \citep{AprilTag}, full pose estimation in 6 degrees of freedom (DOF) can be done based on just a single tag. Another significant disadvantage of the ringed marker from Meghshyam et al. is the limited number of tag ID's, as their proposed encoding method allows for a maximum of 4 distinct tags \citep{BlurResilient}.
 
 
 Unlike previous attempts to engineer more resilient tags, the algorithm proposed here exploits the temporal coherence between successive frames in a video sequence to track a tag's location between successful detections. As many high-blur scenarios involve a continuous stream of images taken at equidistant time intervals (e.g a quadroter-mounted moving camera viewing tags or a stationary camera tracking an AprilTag-labeled moving object), we propose to use knowledge of a fiducial's prior location to augment the detection algorithm. As such, this paper presents a novel particle-filter-based tracking algorithm (AprilTrack) capable of tracking AprilTags in 6 DOF with both joint-tag motion and camera ego-motion.
 	
-Previous work involving the tracking of blurred objects includes the Blur-driven Tracker (BLUT) framework proposed by Wu et al. \cite{BLUT} for tracking motion-blurred targets. BLUT, a particle-filter based tracker, works on the observation that blur strength and direction can be used estimate an object's velocity and provide valuable information for successfully tracking a blurred object. While capable of reliably tracking blurred objects, BLUT suffers from the disadvantage that it can do so only in two dimensions (i.e it is assumed that the object always faces the camera) and so cannot track a sequence of involving arbitrary tag rotations and translations.
+Previous work involving the tracking of blurred objects includes the Blur-driven Tracker (BLUT) framework proposed by Wu et al. \citep{BLUT} for tracking motion-blurred targets. BLUT, a particle-filter based tracker, works on the observation that blur strength and direction can be used estimate an object's velocity and provide valuable information for successfully tracking a blurred object. While capable of reliably tracking blurred objects, BLUT suffers from the disadvantage that it can do so only in two dimensions (i.e it is assumed that the object always faces the camera) and so cannot track a sequence of involving arbitrary tag rotations and translations.
 
 
-The novel method proposed in this paper augments the AprilTag detection algorithm originally designed by Olson \cite{AprilTag} and improved by Wang et al \cite{AprilTag_2} with a particle-filter based algorithm to reliably track an AprilTag through an arbitrary sequence of images, providing valuable fiducial-based position information when existing methods would be unable to do so. In addition, the proposed algorithm is extended to incorporate the joint motion of an arbitrary number of tags to increase the accuracy of the tracked orientation and position.
+The novel method proposed in this paper augments the AprilTag detection algorithm originally designed by Olson \citep{AprilTag} and improved by Wang et al \citep{AprilTag_2} with a particle-filter based algorithm to reliably track an AprilTag through an arbitrary sequence of images, providing valuable fiducial-based position information when existing methods would be unable to do so. In addition, the proposed algorithm is extended to incorporate the joint motion of an arbitrary number of tags to increase the accuracy of the tracked orientation and position.
 
 
 \textbf{Overview.} The remainder of the paper is organized as follows. Section 2 gives an overview of the method proposed in this paper and describes the algorithm in detail. Section 3 describes the implementation of the algorithm and evaluates its performance on a manually-labeled dataset of blurred moving tags both quantitatively and qualitatively. In section 4 we discuss the limitations of this approach and suggest possible avenues of future research.
 
 \section{Method}
 
-The AprilTrack algorithm is similar in concept to the BLUT tracker by Wu et al. \cite{BLUT} in that it uses a particle filter to integrate all available information about a marker's position. Overall, the description of the algorithm can be broken down into three parts: one describing the particle filter, another on the method for evaluating candidate particles, and one describing the modifications made to simulatenously track multiple tags.
+The AprilTrack algorithm is similar in concept to the BLUT tracker by Wu et al. \citep{BLUT} in that it uses a particle filter to integrate all available information about a marker's position. Overall, the description of the algorithm can be broken down into three parts: one describing the particle filter, another on the method for evaluating candidate particles, and one describing the modifications made to simulatenously track multiple tags.
 
 \subsection{The Particle Filter}
 
@@ -89,10 +84,7 @@ The particle filter used for the AprilTrack algorithm is a Bayesian Sequential I
 
 where $\vec{r}$ is the three dimensional position of the tracked object, $\dot{\vec{r}}$ is the three dimensional velocity, $\vec{q}$ is a four dimensional unit quaternion containing the pose of the tracked object, and $\vec{\omega}$ is an angular velocity with components $\omega_x$, $\omega_y$, and $\omega_z$.
 
-
-
-
-\textbf{Optimal filtering.} The prediction step can be formulated in a Bayesian setting as the computation of the prior distribution $p(\vec{x}_{t}|\vec{z}_{t-1})$ from the filtering distribution $p(\vec{x}_{t-1}|\vec{z}_{1:t-1})$ where $\vec{z}_t$ represents the measurement (appearance of a fiducial) taken at time $t$. As in \cite{ParticleNotes}:
+\textbf{Optimal filtering.} The prediction step can be formulated in a Bayesian setting as the computation of the prior distribution $p(\vec{x}_{t}|\vec{z}_{t-1})$ from the filtering distribution $p(\vec{x}_{t-1}|\vec{z}_{1:t-1})$ where $\vec{z}_t$ represents the measurement (appearance of a fiducial) taken at time $t$. As in \citep{ParticleNotes}:
 
 \begin{equation} \label{eq:predict}
 p(\vec{x}_t|\vec{z}_{1:t-1}) = \int p(\vec{x}_t | \vec{x}_{t-1})p(\vec{x}_{t-1}|\vec{z}_{1:t-1})d\vec{x}_{t-1}
@@ -105,45 +97,61 @@ Likewise, the update step can be formulated in a similar manner, where the prior
 \begin{equation*}
 p(\vec{x}_t|\vec{z}_t,\vec{z}_{1:t-1}) = \frac{p(\vec{z}_t|\vec{x}_t, \vec{z}_{1:t-1})p(\vec{x}_t|\vec{z}_{1:t-1})p(\vec{z}_{1:t-1})}{p(\vec{z}_{1:t})}
 \end{equation*}
-As the model $p(\vec{x}_t|\vec{x}_{t-1})$ is Markovian, the current measurement is conditionally independent of previous measurements given $\vec{x}_t$, meaning that $p(\vec{z}_{t}|\vec{x}_t, \vec{z}_{1:t-1})$ can be written as $p(\vec{z}_t|\vec{x}_t)$. $p(\vec{z}_{1:t})$ can also be expressed as $p(\vec{z}_t|\vec{z}_{1:t-1})p(\vec{z}_{1:t-1})$ resulting in the final update equation \cite{ParticleNotes}
+As the model $p(\vec{x}_t|\vec{x}_{t-1})$ is Markovian, the current measurement is conditionally independent of previous measurements given $\vec{x}_t$, meaning that $p(\vec{z}_{t}|\vec{x}_t, \vec{z}_{1:t-1})$ can be written as $p(\vec{z}_t|\vec{x}_t)$. $p(\vec{z}_{1:t})$ can also be expressed as $p(\vec{z}_t|\vec{z}_{1:t-1})p(\vec{z}_{1:t-1})$ resulting in the final update equation \citep{ParticleNotes}
 \begin{equation} \label{eq:update}
 	p(\vec{x}_t|\vec{z}_{1:t}) = \frac{p(\vec{z}_{t}|\vec{x}_t)p(\vec{x}_{t}|\vec{z}_{1:t-1})}{p(\vec{z}_t|\vec{z}_{1:t-1})}
 \end{equation}
 
 
+\textbf{Particle Filters.}\footnote{A more in-depth discussion of particle filters can found in . This } In this regard, particle filters attempt to approximate the posterior distribution at time $t-1$, $p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1})$, using Monte-Carlo methods. A particle filter consists of a set of $N$ samples $\{ (\vec{x}^i_{t-1}, w^i_{t-1}) \}_{i=1}^N$ drawn from the proposal distribution $q(\vec{x}^i)$ and weighted so as to take into account any discrepancy between $q(\vec{x})$ and $p(\vec{x})$ in that $w^i_t \propto p(\vec{x}^i_{0:t}|\vec{z}_{1:t})/q(\vec{x}^i_{0:t}|\vec{z}_{1:t})$.
 
+As with the optimal filtering scenario, the prior distribution (the distribution of particles at the current timestep before taking into account the measurement) is calculated in the propagation step. In a particle filter, this simply amounts to drawing a new set of particles based using
 
-
-\textbf{Particle Filters.} In this regard, particle filters attempt to approximate the posterior distribution at time $t-1$, $p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1})$, using Monte-Carlo methods. A particle filter consists of a set of $N$ samples $\{ (\vec{x}^i_{t-1}, w^i_{t-1}) \}_{i=1}^N$ drawn from the proposal distribution $q(\vec{x}^i)$ where each sample is called a \emph{particle}. This allows for the filtering distribution $p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1})$ to be approximated by (as described in \cite{ParticleNotes})
-
-\begin{equation}
- 	p(\vec{x}_{0:t-1}|\vec{z}_{1:t-1}) \approx \sum_{i=1}^{N}{w^i_{t-1}\delta_{\vec{x}^i_{0:t-1}}}
+\begin{equation} \label{eq:propagate_particles}
+	\vec{x}^i_t \sim q(\vec{x}_t|\vec{x}^i_{t-1}, \vec{z}_t)
 \end{equation}
 
- where
-\begin{equation}
-	\sum_{i=1}^{N}{w^i_t} = 1
-\end{equation}
+where $\sim$ denotes sampling from the state transition distribution $q(\vec{x}_t|\vec{x}^i_{t-1}, \vec{z}_t)$.
 
-
-As the particles are drawn from the proposal distribution $q(\vec{x})$, the sample weight $w^i$ must take into account any discrepancy between $p(\vec{x})$ and $q(\vec{x})$ so that $w^i_t \propto p(\vec{x}^i_{1:t}|\vec{z}_{1:t})/q(\vec{x}^i_{1:t}|\vec{z}_{1:t})$. From this observation we note that therefore:
-
-\begin{equation*}
+Given the prior distribution, the particle weights must then be updated to reflect the target distribution $p(x)$. As previously noted:
+\begin{equation} \label{eq:weight_value}
 	w^i_{t} \propto \frac{p(\vec{x}^i_{0:t}|\vec{z}_{1:t})}{q(\vec{x}^i_{0:t}|\vec{z}_{1:t}) }
+\end{equation}
+We assume the proposal distribution $q(\vec{x})$ can be factored as
+\begin{equation*}
+	q(\vec{x}^i_{0:t}|\vec{z}_{1:t}) = q(\vec{x}^i_t|\vec{x}_{0:t-1})q(\vec{x}^i_{0:t-1}|\vec{z}_{1:t-1})
 \end{equation*}
+Since $p(\vec{x}^i_{0:t}|\vec{z}_{1:t})$ can be rewritten (in a similar manner to the derivation of \eqref{eq:update} with Bayes' law) as
+\begin{equation*}
+	p(\vec{x}^i_{0:t}|\vec{z}_{1:t}) = 
+	\frac{p(\vec{z}_t|\vec{x}^i_t)p(\vec{x}_t|\vec{x}^i_{0:t-1}, \vec{z}_{1:t-1})p(\vec{x}^i_{0:t-1}|\vec{z}_{1:t-1})}{p(\vec{z}_t|\vec{z}_{1:t-1})}
+\end{equation*}
+the equation from \eqref{eq:weight_value} can then be rewritten recursively in terms of $w^i_{t-1}$ with
 
-In the simplified case of a Sequential Importance Resampling algorithm, the prediction and update equations derived from \eqref{eq:predict} and \eqref{eq:update} can, in the context of a SIR particle filter, be simplified to:
+\begin{equation} \label{eq:update_weights}
+	w^i_t \propto w^i_{t-1} \frac{p(\vec{z}_t|\vec{x}^i_t)p(\vec{x}^i_t|\vec{x}^i_{t-1})}{q(\vec{x}^i_t|\vec{x}^i_{t-1},\vec{z}_t)}
+\end{equation}
+
+This allows us update the weights from the previous iteration and model the posterior distribution $p(\vec{x}_{0:t}|\vec{z}_{1:t})$ with the set of weighted particles. The highest weighted particle is seleted as the most likely candidate.
+
+To prevent the set particles from degenerating over time into a handful of highly weighted particles, resampling is applied. Resampling consists of drawing a new set of $N$ particles from the discrete approximation of the filtering distribution $p(\vec{x}_t|\vec{z}_{1:t})$ with the set of weighted particles:
+
+\begin{equation}
+	p(\vec{x}_t|\vec{z}_{1:t}) \approx \sum_{i=1}^{N}{w^i_t\delta_{\vec{x}^i_t}}
+\end{equation}
+where the weights of the new resampled particles are then set to $1/N$.
+
+The algorithm described and derived above is the Sequential Importance Sampling (SIS) filter. The AprilTrack tracker uses a Sequential Importance Resampling (SIR) filter, which deviates from the SIS algorithm in that resampling is applied after every iteration and the proposal distribution $q(\vec{x}_t|\vec{x}^i_{t-1})$ is simply the state transition distribution $p(\vec{x}_t|\vec{x}^i_{t-1})$. This means that the propagate and update equations from \eqref{eq:propagate_particles} and \eqref{eq:update_weights} simply become:
 
 \begin{equation}
 	\vec{x}^i_t \sim p(\vec{x}_t|\vec{x}^i_{t-1})
 \end{equation}
-
+and (with the weights normalized to a total of 1):
 \begin{equation}
 	w \propto p(\vec{z}_t|\vec{x}^i_t)
 \end{equation}
-where $\vec{x}^i_t \sim p(\vec{x}_t|\vec{x}^i_{t-1})$ denotes that, during the prediction step, the particles for the prior distribution at time $t$ are sampled from the known distribution $p(\vec{x}_t|\vec{x}^i_{t-1})$. The distribution $p(\vec{z}_t|\vec{x}^i_t)$ for updating particle weights will be defined in section \ref{sec:candidate_particles}.
 
-In AprilTrack, we model $p(\vec{x}_t|\vec{x}^i_{t-1})$ as a multivariate gaussian distribution with standard deviation $\vec{\sigma}$ around a mean $\vec{\mu}$ where
+In AprilTrack, we model $p(\vec{x}_t|\vec{x}^i_{t-1})$ as a multivariate gaussian distribution with standard deviations $\vec{\sigma}$ around a mean $\vec{\mu}$ where
 \begin{equation} \label{eq:propagation_mean}
 \vec{\mu} = 
 \begin{bmatrix} 
@@ -153,19 +161,11 @@ In AprilTrack, we model $p(\vec{x}_t|\vec{x}^i_{t-1})$ as a multivariate gaussia
 	\vec{\omega}^i_{t-1}
 \end{bmatrix}
 \end{equation}
-
-In equation \eqref{eq:propagation_mean}, $\Delta t$ is the elapsed time and $\dot{\vec{q}}^i_{t-1}$ is the quaternion representation of $\Delta t  \vec{\omega}^i_{k-1}$, as described in \cite{KalmanFilter}. We also use the \emph{noise quaternion} formulated in \cite{KalmanFilter} to apply the gaussian noise to the quaternion $\vec{q}^i_{k-1} \dot{\vec{q}}^i_{k-1}$. For simplicity, we make the assumption that the input images have been taken at equidistant time intervals and incorporate $\Delta t$ into the $\vec{\omega}$ and $\dot{\vec{r}}$ components of $\vec{\sigma}$.
-
-
-After completing the update prediction and update steps and selecting the particle with the highest weight as the most likely candidate, the final resampling step simply consists of drawing a new set of $N$ particles with equal weights (normalized to a total of one) from the distribution $p(\vec{x}_t|\vec{z}_{1:t})$ where $p(\vec{x}_t|\vec{z}_{1:t})$ is approximated by the set of weighted particles.
-
-\begin{equation}
-	p(\vec{x}_t|\vec{z}_{1:t}) \approx \sum_{i=1}^{N}{w^i_t\delta_{\vec{x}^i_t}}
-\end{equation}
+and where $\Delta t$ is the elapsed time and $\dot{\vec{q}}^i_{t-1}$ is the quaternion representation of $\Delta t  \vec{\omega}^i_{t-1}$, as described in \citep{KalmanFilter}. We also use the \emph{noise quaternion} formulated in \citep{KalmanFilter} to apply the gaussian noise to the quaternion $\vec{q}^i_{t-1} \dot{\vec{q}}^i_{t-1}$. For simplicity, we make the assumption that the input images have been taken at equidistant time intervals and incorporate $\Delta t$ into the $\vec{\omega}$ and $\dot{\vec{r}}$ components of $\vec{\sigma}$.
 
 \subsection{Evaluation of Candidate Particles} \label{sec:candidate_particles}
 
-The tracking of AprilTags in 6 DOF requires a method for evaluating the likelihood of candidate particles at arbitrary three dimensional positions and rotations, or $p(\vec{z}_t|\vec{x}^i_t)$. To this effect, the proposed method uses homographies to generate image \emph{patches}, which are unprojected representations of an AprilTag for a particular pose and image.
+The tracking of AprilTags in 6 DOF requires a method for evaluating the likelihood of candidate particles with arbitrary three dimensional positions and rotations in order to calculate $p(\vec{z}_t|\vec{x}^i_t)$. To this effect, the proposed method uses homographies to generate image \emph{patches}, which are unprojected representations of an AprilTag for a particular pose and image.
 
 
 Given the function $I(\begin{bmatrix} \lambda x, & \lambda y, & \lambda \end{bmatrix}^\intercal )$ representing the intensity of pixel at a particular $(x,y)$ of an image, a patch in the image can be defined by the function 
@@ -192,7 +192,7 @@ This allows for the evaluation of candidate particle $\vec{x}^i$ by the measurin
 
 
 
-where $\widehat{\vec{q}^i}$ is the rotation matrix representation of particle $\vec{x}^i$'s rotation quaternion $\vec{q}$, $\vec{r}$ is the particle's translation, and $\tau$ is the tag's edge length. The patch for the detected AprilTag uses the homography $\vec{H}_{ref}$ supplied by the AprilTag library, which computes the homography using the Direct Linear Transform algorithm \cite{AprilTag}. 
+where $\widehat{\vec{q}^i}$ is the rotation matrix representation of particle $\vec{x}^i$'s rotation quaternion $\vec{q}$, $\vec{r}$ is the particle's translation, and $\tau$ is the tag's edge length. The patch for the detected AprilTag uses the homography $\vec{H}_{ref}$ supplied by the AprilTag library, which computes the homography using the Direct Linear Transform algorithm \citep{AprilTag}. 
 
 
 To compare the patches efficiently, $P^i$ and $P_{ref}$ are evaluated at a regular grid from $(-1, -1)$ to $(1, 1)$ at intervals of $2 / \rho$. This results in two $\rho \times \rho$ matrices $\vec{M}^i$ and $\vec{M}_{ref}$. To compare the patches, the error between the two  matrices is calculated using the correlation coefficient between the individual elements of the matrices.
@@ -204,7 +204,7 @@ To compare the patches efficiently, $P^i$ and $P_{ref}$ are evaluated at a regul
 where $\vec{A}$ and $\vec{B}$ are the matrix approximations of two patches, $\sigma_{\vec{A}}$ and $\sigma_{\vec{B}}$ are the standard deviations of the respective matrices' elements and $\mu_{\vec{A}}$ and $\mu_{\vec{B}}$ are their means. By normalizing by mean and standard deviation, using correlation as a similarity metric (as opposed to the sum of the absolute difference or squared difference) ensures lighting invariance for comparing patches containing the same marker under different illuminations.
 
 
-As in BLUT \cite{BLUT}, the patch error $\epsilon(\vec{M}^{i}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}^i_t)$ to update the weights and select the best particle with
+As in BLUT \citep{BLUT}, the patch error $\epsilon(\vec{M}^{i}, \vec{M}_{ref})$ is used to compute the observation likelihood $p(\vec{z}_t|\vec{x}^i_t)$ to update the weights and select the best particle with
 
 
 \begin{equation}
@@ -218,6 +218,12 @@ where the parameter $\gamma$ allows for more or less selective resampling.
 	\centering
 	\includegraphics[width=7.5cm,height=5cm]{tracked_tag}
 	\caption{A blurred tag being tracked. The red border indicates that the tag was not detected with the AprilTag detector.}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=7cm,height=4.75cm]{RefPatches}
+	\caption{The reference patches of various tags (by ID) in a multi-Tag tracking scenario.}
 \end{figure}
 
 \begin{figure*}[t]
@@ -301,12 +307,6 @@ In both ego-motion and joint tag motion, the observation likelihood $p(\vec{z}_t
 where $K$ is the number of tags being tracked and $\vec{M}_{k,ref}$ is the reference patch approximation for tag $k$ from the last successful detection.
 
 
-
-\begin{figure}
-	\centering
-	\includegraphics[width=7cm,height=4.75cm]{RefPatches}
-	\caption{The reference patches of various tags (by ID) in a multi-Tag tracking scenario.}
-\end{figure}
 \begin{figure}
 	\centering
 	\includegraphics[width=8cm,height=6cm]{Particles2}
@@ -331,7 +331,7 @@ When running with a multi-tag configuration, the tracker is able to make use of 
 
 \section{Conclusion}
 
-This paper has presented the AprilTrack algorithm augmenting the standard AprilTag detection algorithm with a novel tracker capable of tracking the tags in 6 DOF by using homographies to evaluate candidate particles. Experimental results show that the tracker is capable of accurately tracking both single tags and consolidating information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
+We have presented the AprilTrack algorithm, which augments standard AprilTag detection algorithms with a tracker capable of tracking fiducials in 6 DOF. Experimental results show that the tracker is capable of accurately tracking both single tags and consolidating information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
 
 \bibliographystyle{abbrv}
 \bibliography{paper_bib}{}
