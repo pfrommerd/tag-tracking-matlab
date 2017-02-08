@@ -66,10 +66,10 @@ classdef MotionModel < handle
             end
         end
         
-        function addTag(this, tag, weight)
+        function addTag(this, tag)
             tag.refPatch = [];
             this.modelledTags{length(this.modelledTags) + 1} = tag;
-            this.visibleTags = [this.visibleTags weight];
+            this.visibleTags = [this.visibleTags 0];
         end
         
         function setTagVisible(this, id, visible)
@@ -83,23 +83,9 @@ classdef MotionModel < handle
         end
         
         function loadTags(this, file)
-            [ids, sizes, border, posX, posY, posZ, rotX, rotY, rotZ, rotW] = ...
-                textread(file, '%f %f %f %f %f %f %f %f %f %f', 'commentstyle', 'shell');
-            
-            for i=1:length(ids)
-                tag(1).id = ids(i);
-                tag(1).color = 'r';
-                tag(1).size = 0.001 * [sizes(i) sizes(i)];
-                tag(1).border = 0.001 * [border(i) border(i)];
-
-                pos = (0.001 .* [posX(i) posY(i) posZ(i)])';
-                rot = vrrotvec_to_quat([rotX(i) rotY(i) rotZ(i) rotW(i)])';
-                tag(1).state = [pos; rot; 0; 0; 0; 0; 0; 0];
-                
-                %if tag(1).id == 23
-                if true
-                    this.addTag(tag, 0);
-                end
+            loadedTags = load_tag_config(file);
+            for i=1:length(loadedTags)
+                this.addTag(loadedTags{i});
             end
         end
         
@@ -164,7 +150,6 @@ classdef MotionModel < handle
 
             this.particles = q_smpl(this.particles, this.weights, 1, ...
                                     this.params.process_noise);
-
             fprintf('; Took: %f\n', toc());
 
             
@@ -254,7 +239,7 @@ classdef MotionModel < handle
                     p = extract_patch(this.tagParams.patchSize, ...
                                       this.tagParams.coords, ...
                                       img, t);
-                    
+                                  
                     err = measure_patch_error(p, t.refPatch);
                     z = z * err;
                     %z

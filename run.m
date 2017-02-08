@@ -12,6 +12,8 @@ function [ imgs, corners, poses, rot ] = run(config, shouldRecord)
     switch config
         case 'hard_seq'
             [tracker, detector, frames] = hard_seq_config(1);
+        case 'hard_seq-still'
+            [tracker, detector, frames] = hard_seq_config(0);
         case 'test_video'
             [tracker, detector, frames] = test_video_config();
         case 'movcam1'
