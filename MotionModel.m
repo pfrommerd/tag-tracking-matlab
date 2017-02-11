@@ -127,7 +127,7 @@ classdef MotionModel < handle
         end
 
         
-        function tags = process(this, img, detectedTagMap)
+        function [tags, x] = process(this, img, detectedTagMap)
             % ---------------------  Resample -----------------------
             fprintf('*** Resampling ***\n');
             fprintf('--> Resampling');
@@ -200,9 +200,10 @@ classdef MotionModel < handle
             % Pick the particle with the highest weight
             %%{
             [z, i] = max(this.weights);
-            this.x = this.particles(:, i);
-            this.x
+            x = this.particles(:, i);
+            
             % Measure which tags we should get rid of
+            this.x = x;
             this.removeOccludedTags(this.x, img);
 
             tags = this.transformTags(this.x, detectedTagMap);
@@ -224,7 +225,7 @@ classdef MotionModel < handle
             
             % For every particle, go through each tag
             % and average the error
-            for n=1:size(X, 2)
+            parfor n=1:size(X, 2)
                 x = X(:, n);
                 
                 z = 1;
@@ -311,7 +312,7 @@ classdef MotionModel < handle
         end
         
         
-        function debug(this, img, fig1, fig2, fig3, fig4, fig5)
+        function debug(this, img, x, fig1, fig2, fig3, fig4, fig5)
             sfigure(fig1);
             colormap(gray(255));
             
@@ -371,7 +372,7 @@ classdef MotionModel < handle
                 w = this.visibleTags(i);
                 if w > 0
                     % Transform the state
-                    t.state = this.transform(t.state, this.x);
+                    t.state = this.transform(t.state, x);
                     t.homography = homography_from_state(this.tagParams.K, t);
                     
                     p = extract_patch(this.tagParams.patchSize, ...

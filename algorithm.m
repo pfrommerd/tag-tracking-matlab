@@ -1,6 +1,5 @@
-function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
+function [ imgs, poses ] = algorithm(tracker, detector, images, record)
     imgs = {};
-    corners = [];
     poses = [];
     
     disp('Initializing figures');
@@ -24,7 +23,7 @@ function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
         if mod(counter, 10) == 0
             clc;
         end
-        if (counter == 1000)
+        if (counter > 1000)
             return;
         end
         
@@ -36,8 +35,10 @@ function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
 	
         fprintf(':: Processing image'); 
         [detector_tags] = detector.process(img);
-        tags = tracker.process(img, detector_tags);
-                
+        [tags, x] = tracker.process(img, detector_tags);
+        poses = [poses x];
+        x
+        
         fprintf(':: Clearing figures\n');
         tic();
 
@@ -61,10 +62,6 @@ function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
         % tags array
         tags = project_tags(tracker.tagParams.K, tags);
         
-        if record && length(tags) > 0
-            poses = [poses; tags{1}.state'];
-            corners = [corners; reshape(tags{1}.corners', [1, 8])];
-        end
         
         %drawTags(detector_tags, 'symbol', 'x');
         %drawTags(reproj_tags, 'symbol', 'o');
@@ -76,7 +73,12 @@ function [ imgs, corners, poses ] = algorithm(tracker, detector, images, record)
         fprintf(':: Displaying debug stuff\n');
         tic();
 
-        tracker.debug(img, fig2, fig3, fig4, fig5, fig6);
+        tracker.debug(img, x, fig2, fig3, fig4, fig5, fig6);
+        
+        % Draw the pose history
+        sfigure(7);
+        visualize_poses(poses);
+        
         sfigure(1);
 
         fprintf('// Took %f\n', toc());

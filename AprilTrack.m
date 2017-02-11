@@ -36,7 +36,7 @@ classdef AprilTrack < TagSource
             mm.setTagParams(this.tagParams);
         end
         
-        function tags = process(this, img, detector_tags)
+        function [tags, x] = process(this, img, detector_tags)
             tagMap.keys = {};
             tagMap.values = {};            
             
@@ -47,14 +47,17 @@ classdef AprilTrack < TagSource
             end
             
             tags = {};
+            x = [];
             for i=1:length(this.motionModels)
                 mm = this.motionModels{i};
-                tags = [tags mm.process(img, tagMap)];
+                [mtags, mx] = mm.process(img, tagMap);
+                tags = [tags mtags];
+                x = [x; mx];
             end
         end
-        function debug(this, img, fig1, fig2, fig3, fig4, fig5)
+        function debug(this, img, x, fig1, fig2, fig3, fig4, fig5)
             if length(this.motionModels) > 0
-                this.motionModels{1}.debug(img, fig1, fig2, fig3, fig4, fig5);
+                this.motionModels{1}.debug(img, x, fig1, fig2, fig3, fig4, fig5);
             end
         end
     end

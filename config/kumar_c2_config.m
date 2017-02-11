@@ -1,5 +1,5 @@
 function [tracker, detector, frames] = setup_hard_seq(skip_rate)
-    frames = ImagesSource('../data/hard_seq/images', skip_rate);
+    frames = ImagesSource('../data/kumar/c2/images', skip_rate);
 
     % Image parameters
     K = [568.8885   0           959.1503;
@@ -18,9 +18,9 @@ function [tracker, detector, frames] = setup_hard_seq(skip_rate)
 
     % Add a motion model
     mmParams(1).err_discard_threshold = 1.1;
-    mmParams(1).num_particles = 100;
-    mmParams(1).process_noise = [0 0 0 ...
-                                 0 0 0 ...
+    mmParams(1).num_particles = 2000;
+    mmParams(1).process_noise = [0.02 0.02 0.02 ...
+                                 0.02 0.02 0.02 ...
                                  0 0 0 ...
                                  0 0 0];
 
@@ -30,14 +30,19 @@ function [tracker, detector, frames] = setup_hard_seq(skip_rate)
 
     model = MotionModel(mmParams, @transform_ego);
 
-    model.loadTags('../data/hard_seq/tags.txt');
-
-    %initial = [1.1029; 0.2798; -0.3398;  0.707; 0.707; 0; 0; 0; 0; 0; 0; 0; 0];
-    %initial = [1.4845; 0.0898; -1.1796;  0.5676; 0.6329; -0.4496; -0.2735; 0; 0; 0; 0; 0; 0];
-    initial = [0; 0.2798; 1;
-                1; 0; 0; 0; 
+    model.loadTags('../data/kumar/tags.txt');
+     
+    % Self-minimized:
+    initial = [-0.022422; -0.2402; 1.2511;
+                0.99989; -0.012514; 0.00029752; -0.0073524; 
                 0; 0; 0; 0; 0; 0];
     
+    
+    % From dataset:
+    % initial = [-0.049631; -0.25185; 1.244; 0.99997; -0.0049944; 0.0013402; -0.0054943;
+    %               0; 0; 0; 0; 0; 0]
+
+
     model.initializeParticlesTo(initial);
     
     tracker.addMotionModel(model);
