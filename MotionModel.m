@@ -241,7 +241,8 @@ classdef MotionModel < handle
                                       this.tagParams.coords, ...
                                       img, t);
                                   
-                    err = measure_patch_error(p, t.refPatch);
+                    % two patches, default error if no patch is found
+                    err = measure_patch_error(p, t.refPatch, 1); 
                     z = z * err;
                     %z
                 end
@@ -299,10 +300,10 @@ classdef MotionModel < handle
                                       this.tagParams.coords, ...
                                       img, t);
                     
-                    err = measure_patch_error(p, t.refPatch);
-                    
-                    % For error debugging
-                    % err
+                    % Use 2 for the default error
+                    % so that we can weed out candidates
+                    % based on if they are out of frame
+                    err = measure_patch_error(p, t.refPatch, 2);
                     
                     if err >= this.params.err_discard_threshold
                         this.visibleTags(i) = 0;

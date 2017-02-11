@@ -19,9 +19,9 @@ end
 
 % Use correlation
 %%{
-function [ err ] = measure_patch_error(patchA, patchB)
+function [ err ] = measure_patch_error(patchA, patchB, default)
     if (size(patchA) ~= size(patchB))
-        err = 1;
+        err = default;
         return;
     else
         a = double(patchA);
@@ -29,7 +29,7 @@ function [ err ] = measure_patch_error(patchA, patchB)
 
         err = 1 - max(corr2(a, b),0);
         if err > 1 || err < 0 || isnan(err) % Some crazy value, like -Inf, Inf, NaN
-            err = 1;
+            err = default;
         end
 
 end
