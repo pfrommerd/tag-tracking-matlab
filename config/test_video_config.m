@@ -1,5 +1,5 @@
-function [tracker, detector, frames] = test_video_config()
-    frames = ImagesSource('../data/test/images', 1);
+function [tracker, detector, frames] = test_video_config(initial_skip, skip_rate)
+    frames = ImagesSource('../data/test/images', initial_skip, skip_rate);
 
     % Image parameters
     K = [1002.6   0           540.9;

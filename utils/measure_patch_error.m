@@ -27,10 +27,12 @@ function [ err ] = measure_patch_error(patchA, patchB, default)
         a = double(patchA);
         b = double(patchB);
 
-        err = 1 - max(corr2(a, b),0);
-        if err > 1 || err < 0 || isnan(err) % Some crazy value, like -Inf, Inf, NaN
+        correlation = min(max(corr2(a, b), 0.0001), 1);
+        err = -log(correlation);
+
+        if isnan(err) % Some crazy value, like -Inf, Inf, NaN
             err = default;
         end
-
+    end
 end
 %}

@@ -6,19 +6,19 @@ classdef ImagesSource < FrameSource
         files
         index
         
-        skip
+        skip_rate
         
         useUndistort
         camParams
     end
     
     methods
-        function obj = ImagesSource(directory, skip, camParams)
+        function obj = ImagesSource(directory, initial_skip, skip_rate, camParams)
             files = dir(directory);
             
             obj.files = {};
-            obj.index = 1;
-            obj.skip = skip;
+            obj.index = 1 + initial_skip;
+            obj.skip_rate = skip_rate;
             
             
             i = 1;
@@ -47,7 +47,7 @@ classdef ImagesSource < FrameSource
             f = this.files{this.index};
             disp('Reading from:');
             disp(f);
-            this.index = this.index + this.skip;
+            this.index = this.index + this.skip_rate;
             
             img = imread(f);
             if ndims(img) > 2

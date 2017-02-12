@@ -116,12 +116,18 @@ classdef MotionModel < handle
                     tag.homography = H * S;
                     
                     % Extract the patch based on the tag homography
-                    this.modelledTags{i}.refPatch = ... 
-                        extract_patch(this.tagParams.patchSize, ...
-                                      this.tagParams.coords, ...
-                                      img, tag);
-                    % make sure we note that the tag is visible
-                    this.visibleTags(i) = 1;
+                    patch = extract_patch(this.tagParams.patchSize, ...
+                                            this.tagParams.coords, ...
+                                            img, tag);
+
+                    if length(patch) > 0
+                        this.modelledTags{i}.refPatch = patch; 
+                        % make sure we note that the tag is visible
+                        this.visibleTags(i) = 1;
+                    else
+                        % We can't extract the tag w/ boundaries
+                        this.visibleTags(i) = 0;
+                    end
                 end
             end
         end
@@ -243,13 +249,13 @@ classdef MotionModel < handle
                                   
                     % two patches, default error if no patch is found
                     err = measure_patch_error(p, t.refPatch, 1); 
-                    z = z * err;
-                    %z
+                    z = z + err;
                 end
-                Z(n) = z;
+                Z(n) = z / size(tags, 2);
                 
                 %pause(1);
             end
+            assignin('base', 'Z', Z);
         end
         
 
@@ -303,10 +309,14 @@ classdef MotionModel < handle
                     % Use 2 for the default error
                     % so that we can weed out candidates
                     % based on if they are out of frame
-                    err = measure_patch_error(p, t.refPatch, 2);
+                    err = measure_patch_error(p, t.refPatch, -1);
                     
-                    if err >= this.params.err_discard_threshold
+                    if this.params.err_discard_threshold > 0 && err >= this.params.err_discard_threshold
                         this.visibleTags(i) = 0;
+                    end
+                    if this.params.err_discard_threshold < 0 && err < 0
+                        % Remove out-of-bounds tags
+                        this.visibleTags(i) = 0;                         
                     end
                 end
             end            
@@ -334,34 +344,21 @@ classdef MotionModel < handle
             end
             
             sfigure(fig2);
-            g_x = linspace(-1, 1, 3);
-            g_y = linspace(-1, 1, 3);
-            g_z = linspace(-1, 1, 3);
-            [s_x, s_y, s_z] = meshgrid(g_x, g_y, g_z);
-            s_x = s_x(:);
-            s_y = s_y(:);
-            s_z = s_z(:);
-            
-            gen_particles = [ this.particles(1:3, :) [s_x s_y s_z]' ];
-            
-            gen_w = [ this.weights ...
-                      zeros([1, size(s_x, 1)])];
-
-            gen_m = [ this.measurements ...
-                  zeros([1, size(s_x, 1)])];
-
             colormap('jet');
-            scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_particles(3, :), 5, gen_w);
+            scatter3(this.particles(1, :), this.particles(2, :), ...
+                     this.particles(3, :), 5, this.weights);
             
             sfigure(fig3);
             colormap('jet');
-            scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_w, 5, gen_w);
+            scatter3(this.particles(1, :), this.particles(2, :), ...
+                     this.weights, 5, this.weights);
             
             sfigure(fig4);
-            scatter3(gen_particles(1, :), gen_particles(2, :), ...
-                     gen_m, 5, gen_m);
+            scatter3(this.particles(1, :), this.particles(2, :), ...
+                     this.measurements, 5, this.measurements);
+            xlim([-1 1]);
+            ylim([-1 1]);
+            %zlim([0 10]);
                  
             sfigure(fig5);
             colormap(gray(255));

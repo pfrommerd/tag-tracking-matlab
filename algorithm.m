@@ -1,7 +1,4 @@
-function [ imgs, poses ] = algorithm(tracker, detector, images, record)
-    imgs = {};
-    poses = [];
-    
+function algorithm(tracker, detector, images, initial_skip, skip_rate, save_images, save_poses)
     disp('Initializing figures');
     
     fig1 = sfigure(1);
@@ -15,16 +12,12 @@ function [ imgs, poses ] = algorithm(tracker, detector, images, record)
     
     disp('Entering main loop');
     
-    counter = 0;
+    counter = initial_skip;
     
+    pose_history = [];
     while images.hasImage()
-        
-        counter = counter + 1;
         if mod(counter, 10) == 0
-            clc;
-        end
-        if (counter > 1000)
-            return;
+            %clc;
         end
         
         fprintf('------------------------------\n');      
@@ -36,7 +29,6 @@ function [ imgs, poses ] = algorithm(tracker, detector, images, record)
         fprintf(':: Processing image'); 
         [detector_tags] = detector.process(img);
         [tags, x] = tracker.process(img, detector_tags);
-        poses = [poses x];
         x
         
         fprintf(':: Clearing figures\n');
@@ -77,21 +69,32 @@ function [ imgs, poses ] = algorithm(tracker, detector, images, record)
         
         % Draw the pose history
         sfigure(7);
-        visualize_poses(poses);
+        pose_history = [pose_history x];
+        visualize_poses(pose_history);
         
         sfigure(1);
 
         fprintf('// Took %f\n', toc());
         
         drawnow;
-        if record
-            tic();
-            fprintf('Getting frame');
+        if ~(counter == initial_skip && initial_skip > 0)
+            if save_images 
+                img = getframe(fig1);
 
-            imgs{counter} = getframe(fig1);
+                file = sprintf('../tmp/images/frame_%04d.png', counter);
+                fprintf('Saving image to file %s\n', file);
+                imwrite(img.cdata, file);
+            end
 
-            disp('-- '), disp(toc());
+            if save_poses
+                % Save the poses
+                file = sprintf('../tmp/poses/poses_%04d.mat', counter);
+                fprintf('Saving pose to file %s\n', file);
+
+                save(file, 'x');
+            end
         end
+        counter = counter + skip_rate;        
     end
 end
 

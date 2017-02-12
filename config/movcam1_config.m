@@ -1,5 +1,5 @@
-function [tracker, detector, frames] = movcam1_config(skip_rate)
-    frames = ImagesSource('../data/movcam1/images', skip_rate);
+function [tracker, detector, frames] = movcam1_config(initial_skip, skip_rate)
+    frames = ImagesSource('../data/movcam1/images', initial_skip, skip_rate);
 
     % Image parameters
     K = [1885         0         946.8;
