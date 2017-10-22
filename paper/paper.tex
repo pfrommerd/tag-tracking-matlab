@@ -227,8 +227,8 @@ where the parameter $\gamma$ allows for more or less selective resampling.
 \end{figure}
 
 \begin{figure*}[t]
+
 	\centering
-	\label{fig:error}
 	\begin{tikzpicture}[trim axis left]
 	\begin{axis}[
 		width=\textwidth,
@@ -247,6 +247,7 @@ where the parameter $\gamma$ allows for more or less selective resampling.
 	] table {corner_error.dat};
 \end{axis}
 \end{tikzpicture}
+	\label{fig:error}
 	\caption{The average corner error between the hand-marked tag location and the tracked location. Much of the error comes from discrepancy between the tracker and the ground truth on the boundaries of the blurred tags. At around frames 30 and 200, the tracker loses the tag momentarily due to a sudden rotation but is able to recover without needing to be manually reset.}
 \end{figure*}
 
@@ -316,16 +317,16 @@ where $K$ is the number of tags being tracked and $\vec{M}_{k,ref}$ is the refer
 \section{Results and Discussion}
 
 The AprilTrack algorithm was primarily evaluated on a manually-labeled single-tag sequence with a moving tag. The algorithm was also run on an ego-motion multi-tag sequence which will be qualitatively discussed.
-\footnote{Videos of the sequences and the tracker's performance are available online at https://www.youtube.com/watch?v=kV8z3st9rlk and https://www.youtube.com/watch?v=F5cFTLBlJ1s }
+\footnote{Videos of the sequence and the tracker's performance are available online at \url{https://www.youtube.com/watch?v=67LREs8fs9Q} and \url{https://www.youtube.com/watch?v=Rk87aE_9p-A}. The code is available online at \url{https://github.com/pfrommerd/tag-tracking-matlab}}
 
 
 The specific implementation of the AprilTrack algorithm used in this experiment was written in MATLAB. For both scenarios, the parameters $\gamma = 10$, $\rho=32$ were used. $\tau$ was $0.1936$ m for all tags, slightly larger than the actual tag size of $0.1635$ m to include some of the whitespace around the tag. In the single-tag scenario, the standard deviation $\vec{\sigma}$  of the gaussian noise used in the state transition distribution $p(\vec{x}_t|\vec{x}^i_{t-1})$ was $0.01$ for the $\vec{r}$ component, $0.05$ for $\vec{q}$, $0.02$ for $\dot{\vec{r}}$, and $0$ for $\omega$.
 
 
-When evaluated on the single-tag sequence, the algorithm ran with $N=3000$ at around $1$ fps on an i7 Haswell Intel CPU. In experiments with fewer particles, it was found that the algorithm could track a tag well with as few as $1000$ particles with around $5$ fps. With a more optimized C++ implementation, the framerate could perhaps be brought up to $10-15$ fps, making the algorithm (run with less agressive parameters) a possible candidate for real-time scenarios. Currently, the MATLAB implementation is intended for offline post-processing of a sequence and so real-time performance was not a focus of this research.
+When evaluated on the single-tag sequence, the algorithm ran with $N=3000$ at around $1$ fps on an i7 Haswell Intel CPU. In experiments with fewer particles, it was found that the algorithm could track a tag well with as few as $1000$ particles with around $5$ fps. With a more optimized C++ implementation, the framerate could perhaps be brought up to $10$ fps, making the algorithm (run with less agressive parameters) a possible candidate for real-time scenarios. Currently, the MATLAB implementation is intended for offline post-processing of a sequence and so real-time performance was not a focus of this research.
 
 
-As shown in figure \ref{fig:error}, the pixel corner error is about 10 pixels for most of the sequence. The tracker loses the tag momentarily around frames 30 and 200 but is able to recover rapidly without any manual intervention. Much of the error observed throughout the sequence is the result of disagreement on the boundary of a blurred tag rather than a systematic issue with the tracker itself.
+As shown in figure 4, the pixel corner error is about 10-20 pixels for most of the sequence. The tracker loses the tag momentarily around frame 30 but is able to recover rapidly without any manual intervention. Much of the error observed throughout the sequence is the result of disagreement on the boundary of a blurred tag rather than a systematic issue with the tracker itself.
 
 When running with a multi-tag configuration, the tracker is able to make use of the additional information to more accurately track the camera's location than in a single-tag scenario. The main challenge for running the algorithm with multiple tags was not successfully tracking the tags---the algorithm was able to do that with half the particles of the single-tag scenario. Rather, the majority of the reprojection error arises from error in the relative tag positions. This opens up new potential avenues of research, such as tag-based bundle adjustment, to alleviate these issues.
 
