@@ -19,8 +19,9 @@
 
 \renewcommand{\eqref}[1]{\textup{{\normalfont(\ref{#1}}\normalfont)}}
 
+
 \title{\textbf{AprilTrack: A Particle-Filter-based AprilTag Tracker}}
-\author{Daniel Pfrommer}
+\author{Daniel Pfrommer \\ \footnotesize{A video overview of this research is available online at \url{https://www.youtube.com/watch?v=6cFSK7Qb0QY}}}
 \date{}
 
 \begin{document}
@@ -30,11 +31,9 @@
 \begin{abstract}
 
 	The AprilTrack algorithm proposed in this paper bridges two existing fields of research in computer vision: the detection of fiducial markers (bar code type tags), and monocular object tracking. Visual tags are highly popular for establishing ground truth location in visual odometry experiments and on mobile robots, but detection can be difficult under rapid camera motion and in poor lighting conditions due to motion blur. In contrast with other works proposing redesigned, more blur resistant tags, we use the popular AprilTag fiducials and improve detection quality by means of a particle filter based monocular object tracker. Our algorithm is able to reliably track a fiducial's position and orientation in six degrees of freedom, allowing for tag-based localization in situations where current detectors fail. This novel patch-based particle filter tracking algorithm, which is extended to simultaneously track multiple tags in ego-motion scenarios, is qualitatively and quantitatively evaluated on several AprilTag sequences, demonstrating that it is capable of reliably localizing blurred tags.
-		
 \end{abstract}
 
 \section{Introduction}
-
 
 Visual tracking of fiducial markers (or simply fiducials) plays an important role in many robotics and computer vision related fields and applications, including augmented and virtual reality \citep{AugmentedReality}, visual odometry/SLAM \citep{TagSLAM}, and object tracking. However, as many of these applications involve the use of fiducials in structured indoors environments where illumination is often limited, long exposure times to compensate for the reduced lighting produce blurred images, especially when taken from a mobile platform such as a quadrotor or a handheld device.
 
@@ -332,7 +331,7 @@ When running with a multi-tag configuration, the tracker is able to make use of 
 
 \section{Conclusion}
 
-We have presented the AprilTrack algorithm, which augments standard AprilTag detection algorithms with a tracker capable of tracking fiducials in 6 DOF. Experimental results show that the tracker can track both single tags and consolidating information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
+We have presented the AprilTrack algorithm, which augments standard AprilTag detection algorithms with a tracker capable of tracking fiducials in 6 DOF. Experimental results show that the tracker can track both single tags and consolidate information from multiple tags in ego-motion and joint tag-motion scenarios. In future research we plan to investigate other possible error metrics for patch comparison and look to deploy AprilTrack in realtime scenarios.
 
 \bibliographystyle{abbrv}
 \bibliography{paper_bib}{}
